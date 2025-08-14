@@ -1,8 +1,9 @@
 import * as pdfjs from "pdfjs-dist";
-import "pdfjs-dist/build/pdf.worker.js";
-
-// Worker hint for bundlers
-pdfjs.GlobalWorkerOptions.workerSrc = (await import("pdfjs-dist/build/pdf.worker.mjs")).default as any;
+// Configure PDF.js worker - use local worker to avoid CORS issues
+if (typeof window !== "undefined" && pdfjs.GlobalWorkerOptions) {
+  // Use the local worker served by Vite from node_modules
+  pdfjs.GlobalWorkerOptions.workerSrc = '/node_modules/pdfjs-dist/build/pdf.worker.min.mjs';
+}
 
 export const loadPdf = async (data: Uint8Array) => {
   const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;
@@ -15,30 +16,77 @@ export const renderPageToCanvas = async (
   scale: number,
   canvas: HTMLCanvasElement
 ) => {
-  const page = await pdf.getPage(pageIndex + 1);
-  const viewport = page.getViewport({ scale });
-  const ctx = canvas.getContext("2d")!;
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-  const renderCtx = { canvasContext: ctx, viewport };
-  await (page.render as any)(renderCtx).promise;
-  return { width: viewport.width, height: viewport.height };
+  if (!pdf) {
+    throw new Error("PDF document is not loaded");
+  }
+  
+  const pageCount = pdf.numPages;
+  if (pageIndex < 0 || pageIndex >= pageCount) {
+    throw new Error(`Invalid page index ${pageIndex}. Document has ${pageCount} pages (0-${pageCount - 1})`);
+  }
+  
+  try {
+    const page = await pdf.getPage(pageIndex + 1); // PDF.js uses 1-based indexing
+    const viewport = page.getViewport({ scale });
+    const ctx = canvas.getContext("2d")!;
+    
+    if (!ctx) {
+      throw new Error("Could not get canvas 2D context");
+    }
+    
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    
+    const renderCtx = { canvasContext: ctx, viewport };
+    await (page.render as any)(renderCtx).promise;
+    
+    // Clean up the page to free memory
+    page.cleanup();
+    
+    return { width: viewport.width, height: viewport.height };
+  } catch (error) {
+    console.error(`Error rendering page ${pageIndex}:`, error);
+    throw error;
+  }
 };
 
 export const extractTextRects = async (pdf: pdfjs.PDFDocumentProxy, pageIndex: number, query: string) => {
-  const page = await pdf.getPage(pageIndex + 1);
-  const content = await page.getTextContent();
-  const norm = (s: string) => s.toLowerCase();
-  const hits: { x: number; y: number; w: number; h: number }[] = [];
-  for (const item of content.items as any[]) {
-    if (!item.str) continue;
-    const s = norm(item.str);
-    if (s.includes(norm(query))) {
-      const [x, y, x2, y2] = item.transform
-        ? [item.transform[4], item.transform[5] - item.height, item.transform[4] + item.width, item.transform[5]]
-        : [0, 0, item.width, item.height];
-      hits.push({ x, y, w: x2 - x, h: y2 - y });
-    }
+  if (!pdf) {
+    throw new Error("PDF document is not loaded");
   }
-  return hits;
+  
+  const pageCount = pdf.numPages;
+  if (pageIndex < 0 || pageIndex >= pageCount) {
+    throw new Error(`Invalid page index ${pageIndex}. Document has ${pageCount} pages (0-${pageCount - 1})`);
+  }
+  
+  if (!query || query.trim().length === 0) {
+    return [];
+  }
+  
+  try {
+    const page = await pdf.getPage(pageIndex + 1); // PDF.js uses 1-based indexing
+    const content = await page.getTextContent();
+    const norm = (s: string) => s.toLowerCase();
+    const hits: { x: number; y: number; w: number; h: number }[] = [];
+    
+    for (const item of content.items as any[]) {
+      if (!item.str) continue;
+      const s = norm(item.str);
+      if (s.includes(norm(query))) {
+        const [x, y, x2, y2] = item.transform
+          ? [item.transform[4], item.transform[5] - item.height, item.transform[4] + item.width, item.transform[5]]
+          : [0, 0, item.width, item.height];
+        hits.push({ x, y, w: x2 - x, h: y2 - y });
+      }
+    }
+    
+    // Clean up the page to free memory
+    page.cleanup();
+    
+    return hits;
+  } catch (error) {
+    console.error(`Error extracting text from page ${pageIndex}:`, error);
+    throw error;
+  }
 };

@@ -23,7 +23,9 @@ export async function redactByRasterize(
   const pngBytes = Uint8Array.from(atob(dataUrl.split(",")[1]), c => c.charCodeAt(0));
 
   const src = await PDFDocument.load(pdfBytes);
-  const [width, height] = src.getPage(pageIndex).getSize();
+  const pageSize = src.getPage(pageIndex).getSize();
+  const width = pageSize.width;
+  const height = pageSize.height;
   const pngDoc = await PDFDocument.create();
   const pageImg = await pngDoc.embedPng(pngBytes);
   const p = pngDoc.addPage([width, height]);

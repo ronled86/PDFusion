@@ -1,7 +1,169 @@
+/* Import custom animations */
+@import './styles/animations.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-.canvas {
-  image-rendering: optimizeSpeed;
+/* Custom styles for modern PDF viewer */
+@layer components {
+  .canvas {
+    image-rendering: optimizeSpeed;
+    cursor: crosshair;
+  }
+  
+  /* Enhanced scrollbar styles */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(59, 130, 246, 0.5);
+    border-radius: 3px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(59, 130, 246, 0.7);
+  }
+  
+  /* Modern button styles */
+  .btn-primary {
+    @apply px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-300 font-medium shadow-lg hover:shadow-xl transform hover:scale-105;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-3 bg-white/60 backdrop-blur-lg border border-white/30 text-gray-700 rounded-xl hover:bg-white/80 transition-all duration-300 hover:scale-105 shadow-lg;
+  }
+  
+  .btn-ghost {
+    @apply px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-white/50 rounded-xl transition-all duration-200 hover:scale-110;
+  }
+  
+  /* Glassmorphism effects */
+  .glass-panel {
+    @apply bg-white/80 backdrop-blur-xl border border-white/30 shadow-lg;
+  }
+  
+  .glass-overlay {
+    @apply bg-black/60 backdrop-blur-sm;
+  }
+  
+  /* Document viewer enhancements */
+  .document-shadow {
+    box-shadow: 
+      0 25px 50px -12px rgba(0, 0, 0, 0.25),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+  
+  /* Enhanced toolbar gradient */
+  .toolbar-bg {
+    background: linear-gradient(135deg, 
+      rgba(248, 250, 252, 0.9) 0%, 
+      rgba(241, 245, 249, 0.9) 50%,
+      rgba(248, 250, 252, 0.9) 100%);
+    backdrop-filter: blur(20px);
+  }
+  
+  /* Notification styles */
+  .notification-enter {
+    @apply animate-slide-in-bottom;
+  }
+  
+  .notification-success {
+    @apply bg-gradient-to-r from-green-400 to-green-500 text-white;
+  }
+  
+  .notification-error {
+    @apply bg-gradient-to-r from-red-400 to-red-500 text-white;
+  }
+  
+  .notification-info {
+    @apply bg-gradient-to-r from-blue-400 to-blue-500 text-white;
+  }
+  
+  /* Enhanced focus styles */
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white/80;
+  }
+  
+  /* Tool group hover effects */
+  .tool-group:hover {
+    @apply transform scale-105 shadow-xl;
+  }
+  
+  /* Welcome screen animations */
+  .welcome-feature {
+    @apply transform transition-all duration-300 hover:scale-105 hover:shadow-lg;
+  }
+  
+  /* Floating elements */
+  .floating-orb {
+    @apply absolute rounded-full mix-blend-multiply filter blur-xl opacity-70;
+  }
+}
+
+/* Enhanced modal animations */
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modalSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+}
+
+.modal-enter {
+  animation: modalSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modal-exit {
+  animation: modalSlideOut 0.2s ease-in;
+}
+
+/* Loading spinner */
+@keyframes spin-glow {
+  0% {
+    transform: rotate(0deg);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
+  }
+  100% {
+    transform: rotate(360deg);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+  }
+}
+
+.loading-spinner {
+  animation: spin-glow 1s linear infinite;
+}
+
+/* Text selection styles */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: #1e40af;
+}
+
+::-moz-selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: #1e40af;
 }

@@ -1,4 +1,4 @@
-# PDF Studio
+# PDFusion
 
 Cross platform PDF reader and writer built with Electron, React, TypeScript, PDF.js for rendering, and pdf-lib for writing.
 
@@ -41,9 +41,10 @@ Artifacts will be created for your platform, you can extend electron-builder con
 
 ## License
 
-# PDFStudio
 
-PDFStudio is a modern PDF management and editing tool built with Electron, React, and TypeScript. It provides features such as PDF viewing, annotation, OCR, redaction, and digital signatures in a user-friendly interface.
+# PDFusion
+
+PDFusion is a modern PDF management and editing tool built with Electron, React, and TypeScript. It provides features such as PDF viewing, annotation, OCR, redaction, and digital signatures in a user-friendly interface.
 
 ## Features
 - PDF viewing and navigation
@@ -79,6 +80,7 @@ npm run build
 This project uses [Semantic Versioning](https://semver.org/). Version information is maintained in `package.json` and all changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## Security
+
 If you discover a security vulnerability, please report it by opening an issue on GitHub or contacting the maintainers directly. Do not disclose security issues publicly until they have been addressed. See [SECURITY.md](SECURITY.md) for more details.
 
 ## License

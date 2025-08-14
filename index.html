@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; img-src 'self' blob: data: http: https:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* https://localhost:* https://unpkg.com https://cdn.jsdelivr.net; script-src-elem 'self' 'unsafe-inline' http://localhost:* https://localhost:* https://unpkg.com https://cdn.jsdelivr.net; connect-src 'self' http://localhost:* ws://localhost:* wss://localhost:* https: https://unpkg.com https://cdn.jsdelivr.net; worker-src 'self' blob: data: https://unpkg.com https://cdn.jsdelivr.net; child-src 'self' blob:; font-src 'self' data:; object-src 'none'; frame-src 'self';"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="Professional PDF editing and manipulation tool"/>
+    <meta name="theme-color" content="#ffffff"/>
+    
+    <!-- Comprehensive favicon and icon definitions -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+    <link rel="alternate icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+    <link rel="manifest" href="/manifest.json">
+    
+    <title>PDF Studio</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      // Enhanced debugging and error suppression
+      let errorCount = 0;
+      const maxErrors = 5;
+      
+      // Store original functions
+      const originalConsoleWarn = console.warn;
+      const originalConsoleError = console.error;
+      const originalConsoleLog = console.log;
+      
+      // Enhanced console.error override with detailed logging
+      console.error = function(...args) {
+        const message = String(args[0] || '');
+        const fullMessage = args.join(' ');
+        
+        // Log first few 404 errors for debugging, then suppress
+        if (message.includes('Failed to load resource') || message.includes('404')) {
+          if (errorCount < maxErrors) {
+            originalConsoleLog('🔍 DEBUG - 404 Error Details:', {
+              message: fullMessage,
+              stack: new Error().stack,
+              timestamp: new Date().toISOString(),
+              userAgent: navigator.userAgent,
+              url: window.location.href,
+              arguments: args
+            });
+            errorCount++;
+          }
+          // Don't suppress yet - we need to see the exact error
+          return originalConsoleError.apply(console, args);
+        }
+        return originalConsoleError.apply(console, args);
+      };
+      
+      console.warn = function(...args) {
+        const message = String(args[0] || '');
+        if (message.includes('Electron Security Warning') || 
+            message.includes('webSecurity') ||
+            message.includes('allowRunningInsecureContent') ||
+            message.includes('Content-Security-Policy') ||
+            message.includes('warnAboutInsecureCSP') ||
+            message.includes('Insecure Content-Security-Policy')) {
+          return; // Suppress security warnings in development
+        }
+        return originalConsoleWarn.apply(console, args);
+      };
+      
+      // Enhanced error event handler
+      window.addEventListener('error', function(e) {
+        if (errorCount < maxErrors) {
+          originalConsoleLog('🔍 DEBUG - Resource Error:', {
+            type: e.type,
+            target: e.target ? {
+              tagName: e.target.tagName,
+              src: e.target.src,
+              href: e.target.href,
+              outerHTML: e.target.outerHTML
+            } : null,
+            message: e.message,
+            filename: e.filename,
+            lineno: e.lineno,
+            colno: e.colno,
+            timestamp: new Date().toISOString()
+          });
+          errorCount++;
+        }
+        
+        if (e.target && (e.target.tagName === 'LINK' || e.target.tagName === 'SCRIPT' || e.target.tagName === 'IMG')) {
+          e.preventDefault();
+          e.stopPropagation();
+          return false;
+        }
+      }, true);
+      
+      // Monitor network requests
+      const originalFetch = window.fetch;
+      window.fetch = function(...args) {
+        const url = args[0];
+        originalConsoleLog('🔍 DEBUG - Fetch Request:', url, 'Stack:', new Error().stack);
+        return originalFetch.apply(this, args).catch(err => {
+          originalConsoleLog('🔍 DEBUG - Fetch Error:', { url, error: err.message });
+          throw err;
+        });
+      };
+      
+      // Monitor XMLHttpRequest
+      const originalXMLHttpRequest = window.XMLHttpRequest;
+      window.XMLHttpRequest = function() {
+        const xhr = new originalXMLHttpRequest();
+        const originalOpen = xhr.open;
+        xhr.open = function(method, url, ...args) {
+          originalConsoleLog('🔍 DEBUG - XHR Request:', method, url, 'Stack:', new Error().stack);
+          return originalOpen.apply(this, [method, url, ...args]);
+        };
+        return xhr;
+      };
+      
+      // Log initial page load info
+      originalConsoleLog('🔍 DEBUG - Page Load Info:', {
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        timestamp: new Date().toISOString(),
+        electron: typeof window.process !== 'undefined',
+        vite: typeof window.__vite_plugin_react_preamble_installed__ !== 'undefined'
+      });
+    </script>
+  <script type="module" src="/@vite/client"></script>
+  <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
