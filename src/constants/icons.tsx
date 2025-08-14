@@ -9,8 +9,36 @@ export const IconSVGs = {
   pen: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />,
   signature: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />,
   rotate: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />,
-  rotateLeft: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 20v-5h-.582m-15.356-2A8.001 8.001 0 0119.418 15m0 0H15m-11-11v5h.581m0 0a8.003 8.003 0 0115.357 2M4.581 9H9" />,
-  rotateRight: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />,
+  rotateLeft: (
+    <>
+      {/* Smooth counter-clockwise rounded arrow */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M3 12a9 9 0 0 1 9-9c2.39 0 4.68.94 6.36 2.64" 
+            fill="none" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M12 3a9 9 0 0 1 6.36 2.64l1.28 1.28" 
+            fill="none" />
+      {/* Rounded arrow head pointing left */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M7 10 L3 12 L7 14" 
+            fill="none" />
+    </>
+  ),
+  rotateRight: (
+    <>
+      {/* Smooth clockwise rounded arrow */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M21 12a9 9 0 0 1-9 9c-2.39 0-4.68-.94-6.36-2.64" 
+            fill="none" />
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M12 21a9 9 0 0 1-6.36-2.64L4.36 17.08" 
+            fill="none" />
+      {/* Rounded arrow head pointing right */}
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+            d="M17 10 L21 12 L17 14" 
+            fill="none" />
+    </>
+  ),
   refresh: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />,
   extract: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />,
   ocr: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />,

@@ -3,7 +3,7 @@ import { useAppContext } from '../contexts/AppContext';
 import { BufferService } from '../services/BufferService';
 import { PDFOperationsService } from '../services/PDFOperationsService';
 import { PrintService } from '../services/PrintService';
-import { openPdfFiles, savePdfFile, showInFolder } from '../lib/fileDialogs';
+import { openPdfFiles, savePdfFile, savePdfFileAs, showInFolder } from '../lib/fileDialogs';
 
 export const usePDFOperations = () => {
   const { state, dispatch } = useAppContext();
@@ -18,9 +18,12 @@ export const usePDFOperations = () => {
       const arr = await openPdfFiles();
       if (arr && arr.length === 1) {
         console.log("Setting single file:", arr[0].name);
-        const fileData = BufferService.createSafeBuffer(arr[0].data);
-        dispatch({ type: 'SET_FILE', payload: { ...arr[0], data: fileData } });
-        dispatch({ type: 'SET_BUFFERS', payload: fileData });
+        // Create a safe buffer that won't be detached
+        const safeBuffer = BufferService.createSafeBuffer(arr[0].data);
+        const fileWithSafeData = { ...arr[0], data: safeBuffer };
+        
+        dispatch({ type: 'SET_FILE', payload: fileWithSafeData });
+        dispatch({ type: 'SET_BUFFERS', payload: safeBuffer });
         dispatch({ type: 'SET_PAGE_INDEX', payload: 0 });
         dispatch({ type: 'SET_FIRST_LOAD', payload: true });
         showNotification("File loaded successfully");
@@ -47,13 +50,16 @@ export const usePDFOperations = () => {
         return;
       }
 
-      if (window.electronAPI) {
+      if (window.electronAPI && state.file.path) {
+        // Electron mode with file path - save to original location
+        // The Electron backend should handle overwrite confirmation
         const saved = await savePdfFile(state.file.name, workingData);
         if (saved) {
           showNotification("File saved successfully");
         }
       } else {
-        showNotification("Save not available in browser mode. Use Save As instead.");
+        // Browser mode or no path - use Save As instead
+        showNotification("No original file path available. Please use Save As.");
       }
     } catch (error) {
       console.error("Error saving file:", error);
@@ -74,27 +80,13 @@ export const usePDFOperations = () => {
         return;
       }
 
-      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
       const baseName = state.file.name.replace(/\.pdf$/i, "");
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-');
       const suggestedName = `${baseName}_edited_${timestamp}.pdf`;
 
-      if (window.electronAPI) {
-        const saved = await savePdfFile(suggestedName, workingData);
-        if (saved) {
-          showNotification("File saved successfully");
-        }
-      } else {
-        // Browser download
-        const blob = new Blob([new Uint8Array(workingData)], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = suggestedName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showNotification("File downloaded successfully");
+      const saved = await savePdfFileAs(suggestedName, workingData);
+      if (saved) {
+        showNotification(`File saved as: ${saved}`);
       }
     } catch (error) {
       console.error("Error saving file:", error);
@@ -107,20 +99,26 @@ export const usePDFOperations = () => {
   }, [state.buffers, state.file, showNotification]);
 
   const showFileInFolder = useCallback(async () => {
-    if (!state.file?.path) {
-      showNotification("No file path available");
+    if (!state.file) {
+      showNotification("No file is currently open");
+      return;
+    }
+
+    if (!state.file.path) {
+      showNotification("File has no saved location. Please save the file first to show it in folder.");
       return;
     }
 
     try {
       if (window.electronAPI) {
         await showInFolder(state.file.path);
+        showNotification("File location opened in file explorer");
       } else {
-        showNotification("Show in folder not available in browser mode");
+        showNotification("Show in folder feature is only available in desktop mode");
       }
     } catch (error) {
       console.error("Error showing file in folder:", error);
-      showNotification("Error showing file in folder: " + (error instanceof Error ? error.message : String(error)));
+      showNotification("Error opening file location: " + (error instanceof Error ? error.message : String(error)));
     }
   }, [state.file, showNotification]);
 
@@ -138,9 +136,39 @@ export const usePDFOperations = () => {
       showNotification("Page rotated successfully");
     } catch (error) {
       console.error("Error rotating page:", error);
-      showNotification("Error rotating page: " + (error instanceof Error ? error.message : String(error)));
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes("detached") || errorMessage.includes("reload")) {
+        showNotification("Buffer error - please reload the document and try again");
+      } else {
+        showNotification("Error rotating page: " + errorMessage);
+      }
     }
   }, [state.buffers, state.file, state.pageIndex, dispatch, showNotification]);
+
+  const rotatePages = useCallback(async (pageIndices: number[], degrees: number = 90) => {
+    try {
+      const result = await PDFOperationsService.rotatePages(
+        state.buffers, 
+        state.file, 
+        pageIndices, 
+        degrees
+      );
+      
+      dispatch({ type: 'SET_BUFFERS', payload: result });
+      dispatch({ type: 'SET_FILE', payload: state.file ? { ...state.file, data: result } : undefined });
+      showNotification(`${pageIndices.length} pages rotated successfully`);
+    } catch (error) {
+      console.error("Error rotating pages:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes("detached") || errorMessage.includes("reload")) {
+        showNotification("Buffer error - please reload the document and try again");
+      } else {
+        showNotification("Error rotating pages: " + errorMessage);
+      }
+    }
+  }, [state.buffers, state.file, dispatch, showNotification]);
 
   const addText = useCallback(async (text: string) => {
     try {
@@ -159,6 +187,112 @@ export const usePDFOperations = () => {
       showNotification("Error adding text: " + (error instanceof Error ? error.message : String(error)));
     }
   }, [state.buffers, state.file, state.pageIndex, dispatch, showNotification]);
+
+  const addHighlight = useCallback(async (text: string) => {
+    try {
+      const result = await PDFOperationsService.addHighlight(
+        state.buffers, 
+        state.file, 
+        state.pageIndex, 
+        text
+      );
+      
+      dispatch({ type: 'SET_BUFFERS', payload: result });
+      dispatch({ type: 'SET_FILE', payload: state.file ? { ...state.file, data: result } : undefined });
+      showNotification("Highlight added successfully");
+    } catch (error) {
+      console.error("Error adding highlight:", error);
+      showNotification("Error adding highlight: " + (error instanceof Error ? error.message : String(error)));
+    }
+  }, [state.buffers, state.file, state.pageIndex, dispatch, showNotification]);
+
+  const addSignature = useCallback(async (imageFile: File, x: number = 100, y: number = 100) => {
+    try {
+      if (!state.file || !state.buffers) {
+        throw new Error("No document loaded");
+      }
+
+      const imageBytes = new Uint8Array(await imageFile.arrayBuffer());
+      const result = await PDFOperationsService.addSignature(
+        state.buffers, 
+        state.file, 
+        state.pageIndex, 
+        imageBytes,
+        x,
+        y
+      );
+      
+      dispatch({ type: 'SET_BUFFERS', payload: result });
+      dispatch({ type: 'SET_FILE', payload: state.file ? { ...state.file, data: result } : undefined });
+      showNotification("Signature added successfully");
+    } catch (error) {
+      console.error("Error adding signature:", error);
+      showNotification("Error adding signature: " + (error instanceof Error ? error.message : String(error)));
+    }
+  }, [state.buffers, state.file, state.pageIndex, dispatch, showNotification]);
+
+  const extractPages = useCallback(async (pageIndices: number[]) => {
+    try {
+      if (!state.file || !state.buffers) {
+        throw new Error("No document loaded");
+      }
+
+      const result = await PDFOperationsService.extractPagesFromDocument(
+        state.buffers, 
+        state.file, 
+        pageIndices
+      );
+      
+      // Save the extracted pages as a new file
+      const baseName = state.file.name.replace(/\.pdf$/i, "");
+      const pageNumbers = pageIndices.map(i => i + 1).join('-');
+      const extractedFileName = `${baseName}_pages_${pageNumbers}.pdf`;
+      
+      // Import the file dialog function
+      const { savePdfFileAs } = await import('../lib/fileDialogs');
+      const saved = await savePdfFileAs(extractedFileName, result);
+      
+      if (saved) {
+        showNotification(`Pages ${pageNumbers} extracted to: ${saved}`);
+      }
+    } catch (error) {
+      console.error("Error extracting pages:", error);
+      showNotification("Error extracting pages: " + (error instanceof Error ? error.message : String(error)));
+    }
+  }, [state.buffers, state.file, showNotification]);
+
+  const performOCR = useCallback(async () => {
+    try {
+      if (!state.file || !state.buffers) {
+        throw new Error("No document loaded");
+      }
+
+      showNotification("Starting OCR on current page...");
+      const result = await PDFOperationsService.performOCR(
+        state.buffers, 
+        state.file, 
+        state.pageIndex
+      );
+      
+      if (result.length > 0) {
+        // For now, just show the extracted text in a notification
+        // Later this could be enhanced to show in a dialog or overlay on the PDF
+        const textPreview = result.substring(0, 100) + (result.length > 100 ? "..." : "");
+        showNotification(`OCR completed. Found text: "${textPreview}"`);
+        
+        // Optionally copy to clipboard
+        if (navigator.clipboard) {
+          await navigator.clipboard.writeText(result);
+          setTimeout(() => showNotification("OCR text copied to clipboard"), 1000);
+        }
+      } else {
+        showNotification("OCR completed but no text was found on this page");
+      }
+    } catch (error) {
+      console.error("Error performing OCR:", error);
+      showNotification("Error performing OCR: " + (error instanceof Error ? error.message : String(error)));
+    }
+  }, [state.buffers, state.file, state.pageIndex, showNotification]);
 
   const refreshDocument = useCallback(async () => {
     if (!state.file?.path) {
@@ -190,7 +324,12 @@ export const usePDFOperations = () => {
     printFile,
     showFileInFolder,
     rotatePage,
+    rotatePages,
     addText,
+    addHighlight,
+    addSignature,
+    extractPages,
+    performOCR,
     refreshDocument,
     showNotification
   };

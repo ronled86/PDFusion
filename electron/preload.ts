@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("electronAPI", {
   openPdf: () => ipcRenderer.invoke("dialog:openPdf"),
   savePdf: (name: string, data: Uint8Array) => ipcRenderer.invoke("dialog:savePdf", name, data),
+  savePdfAs: (defaultName: string, data: Uint8Array) => ipcRenderer.invoke("dialog:savePdfAs", defaultName, data),
   showInFolder: (p: string) => ipcRenderer.invoke("shell:showItemInFolder", p),
   printPdf: (data: Uint8Array, filename: string) => ipcRenderer.invoke("print:pdf", data, filename),
   ipcRenderer: {

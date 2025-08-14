@@ -11,6 +11,7 @@ interface PDFToolsToolbarProps {
   onOCR: () => void;
   onRedact: () => void;
   onRefresh: () => void;
+  selectedPagesCount?: number;
 }
 
 export const PDFToolsToolbar: React.FC<PDFToolsToolbarProps> = ({
@@ -22,7 +23,8 @@ export const PDFToolsToolbar: React.FC<PDFToolsToolbarProps> = ({
   onExtract,
   onOCR,
   onRedact,
-  onRefresh
+  onRefresh,
+  selectedPagesCount = 0
 }) => {
   const [activeTool, setActiveTool] = useState<string>('select');
   const [hoveredGroup, setHoveredGroup] = useState<string | null>(null);
@@ -53,8 +55,18 @@ export const PDFToolsToolbar: React.FC<PDFToolsToolbarProps> = ({
       name: 'Transform',
       color: 'purple',
       tools: [
-        { id: 'rotateLeft', icon: 'rotateLeft', label: 'Rotate Left', action: onRotateLeft },
-        { id: 'rotateRight', icon: 'rotateRight', label: 'Rotate Right', action: onRotateRight }
+        { 
+          id: 'rotateLeft', 
+          icon: 'rotateLeft', 
+          label: selectedPagesCount > 0 ? `Rotate Left (${selectedPagesCount} pages)` : 'Rotate Left', 
+          action: onRotateLeft 
+        },
+        { 
+          id: 'rotateRight', 
+          icon: 'rotateRight', 
+          label: selectedPagesCount > 0 ? `Rotate Right (${selectedPagesCount} pages)` : 'Rotate Right', 
+          action: onRotateRight 
+        }
       ]
     },
     {
@@ -132,6 +144,7 @@ export const PDFToolsToolbar: React.FC<PDFToolsToolbarProps> = ({
                         active={activeTool === tool.id}
                         groupColor={group.color}
                         isGroupHovered={hoveredGroup === group.id}
+                        badge={(tool.id === 'rotateLeft' || tool.id === 'rotateRight') && selectedPagesCount > 0 ? selectedPagesCount : undefined}
                       />
                       {toolIndex < group.tools.length - 1 && (
                         <div className="h-6 w-px bg-gray-200 opacity-50"></div>
@@ -179,6 +192,7 @@ interface ModernToolButtonProps {
   active?: boolean;
   groupColor: string;
   isGroupHovered: boolean;
+  badge?: string | number;
 }
 
 const ModernToolButton: React.FC<ModernToolButtonProps> = ({ 
@@ -187,7 +201,8 @@ const ModernToolButton: React.FC<ModernToolButtonProps> = ({
   onClick, 
   active = false,
   groupColor,
-  isGroupHovered
+  isGroupHovered,
+  badge
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -255,6 +270,13 @@ const ModernToolButton: React.FC<ModernToolButtonProps> = ({
         >
           {iconElements[icon as keyof typeof iconElements]}
         </svg>
+        
+        {/* Badge */}
+        {badge && (
+          <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-4 flex items-center justify-center px-1 z-10">
+            {badge}
+          </div>
+        )}
         
         {/* Active indicator */}
         {active && (

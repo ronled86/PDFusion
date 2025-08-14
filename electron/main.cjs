@@ -277,14 +277,23 @@ electron_1.ipcMain.handle("dialog:openPdf", function () { return __awaiter(void 
     });
 }); });
 electron_1.ipcMain.handle("dialog:savePdf", function (_evt, suggestedName, data) { return __awaiter(void 0, void 0, void 0, function () {
-    var res;
+    var os, documentsPath, defaultPath, res;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                logToFile("Save PDF dialog triggered", suggestedName);
+                logToFile("Save PDF triggered", suggestedName);
+                os = require('os');
+                documentsPath = node_path_1.default.join(os.homedir(), 'Documents');
+                defaultPath = node_path_1.default.join(documentsPath, suggestedName);
                 return [4 /*yield*/, electron_1.dialog.showSaveDialog(win, {
-                        defaultPath: suggestedName,
-                        filters: [{ name: "PDF", extensions: ["pdf"] }]
+                        defaultPath: defaultPath,
+                        filters: [
+                            { name: "PDF Files", extensions: ["pdf"] },
+                            { name: "All Files", extensions: ["*"] }
+                        ],
+                        title: "Save PDF",
+                        buttonLabel: "Save",
+                        properties: ['showOverwriteConfirmation'] // This enables built-in overwrite confirmation
                     })];
             case 1:
                 res = _a.sent();
@@ -292,10 +301,47 @@ electron_1.ipcMain.handle("dialog:savePdf", function (_evt, suggestedName, data)
                     logToFile("Save PDF dialog canceled");
                     return [2 /*return*/, null];
                 }
+                // Note: With 'showOverwriteConfirmation' property, Electron handles overwrite confirmation automatically
                 return [4 /*yield*/, promises_1.default.writeFile(res.filePath, data)];
             case 2:
+                // Note: With 'showOverwriteConfirmation' property, Electron handles overwrite confirmation automatically
                 _a.sent();
                 logToFile("PDF file saved", res.filePath);
+                return [2 /*return*/, res.filePath];
+        }
+    });
+}); });
+electron_1.ipcMain.handle("dialog:savePdfAs", function (_evt, defaultName, data) { return __awaiter(void 0, void 0, void 0, function () {
+    var os, documentsPath, defaultPath, res;
+    return __generator(this, function (_a) {
+        switch (_a.label) {
+            case 0:
+                logToFile("Save PDF As dialog triggered", defaultName);
+                os = require('os');
+                documentsPath = node_path_1.default.join(os.homedir(), 'Documents');
+                defaultPath = node_path_1.default.join(documentsPath, defaultName);
+                return [4 /*yield*/, electron_1.dialog.showSaveDialog(win, {
+                        defaultPath: defaultPath,
+                        filters: [
+                            { name: "PDF Files", extensions: ["pdf"] },
+                            { name: "All Files", extensions: ["*"] }
+                        ],
+                        title: "Save PDF As...",
+                        buttonLabel: "Save",
+                        properties: ['showOverwriteConfirmation'] // This enables built-in overwrite confirmation
+                    })];
+            case 1:
+                res = _a.sent();
+                if (res.canceled || !res.filePath) {
+                    logToFile("Save PDF As dialog canceled");
+                    return [2 /*return*/, null];
+                }
+                // Note: With 'showOverwriteConfirmation' property, Electron handles overwrite confirmation automatically
+                return [4 /*yield*/, promises_1.default.writeFile(res.filePath, data)];
+            case 2:
+                // Note: With 'showOverwriteConfirmation' property, Electron handles overwrite confirmation automatically
+                _a.sent();
+                logToFile("PDF file saved as", res.filePath);
                 return [2 /*return*/, res.filePath];
         }
     });

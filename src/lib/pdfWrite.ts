@@ -168,3 +168,36 @@ export const rotatePage = async (buffer: Uint8Array, pageIndex: number, angle = 
   console.log(`Page rotation saved, new buffer size: ${result.length}`);
   return result;
 };
+
+export const rotatePages = async (buffer: Uint8Array, pageIndices: number[], angle = 90) => {
+  console.log(`rotatePages called: pageIndices=[${pageIndices.join(', ')}], angle=${angle}, bufferSize=${buffer.length}`);
+  
+  if (!validatePdfBuffer(buffer)) {
+    throw new Error("Invalid PDF buffer");
+  }
+  
+  const doc = await PDFDocument.load(buffer);
+  const pageCount = doc.getPageCount();
+  console.log(`PDF loaded successfully, pages: ${pageCount}`);
+  
+  // Validate all page indices
+  for (const pageIndex of pageIndices) {
+    if (pageIndex >= pageCount || pageIndex < 0) {
+      throw new Error(`Page index ${pageIndex} is out of range. Document has ${pageCount} pages.`);
+    }
+  }
+  
+  // Rotate all specified pages
+  for (const pageIndex of pageIndices) {
+    const page = doc.getPage(pageIndex);
+    const currentRotation = page.getRotation().angle;
+    const newRotation = ((currentRotation + angle) % 360 + 360) % 360;
+    
+    console.log(`Rotating page ${pageIndex + 1}: ${currentRotation}° → ${newRotation}°`);
+    page.setRotation(degrees(newRotation));
+  }
+  
+  const result = await doc.save();
+  console.log(`Multiple pages rotation saved, new buffer size: ${result.length}`);
+  return result;
+};

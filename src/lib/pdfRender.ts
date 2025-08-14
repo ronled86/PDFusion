@@ -1,9 +1,7 @@
-import * as pdfjs from "pdfjs-dist";
-// Configure PDF.js worker - use local worker to avoid CORS issues
-if (typeof window !== "undefined" && pdfjs.GlobalWorkerOptions) {
-  // Use the local worker served by Vite from node_modules
-  pdfjs.GlobalWorkerOptions.workerSrc = '/node_modules/pdfjs-dist/build/pdf.worker.min.mjs';
-}
+import { pdfjs, initializePdfJs } from "./pdfConfig";
+
+// Initialize PDF.js configuration
+initializePdfJs();
 
 export const loadPdf = async (data: Uint8Array) => {
   const doc = await pdfjs.getDocument({ data, useSystemFonts: true }).promise;

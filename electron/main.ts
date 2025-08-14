@@ -236,14 +236,64 @@ ipcMain.handle("dialog:openPdf", async () => {
 });
 
 ipcMain.handle("dialog:savePdf", async (_evt, suggestedName: string, data: Uint8Array) => {
-  logToFile("Save PDF dialog triggered", suggestedName);
+  logToFile("Save PDF triggered", suggestedName);
+  
+  // Get user's documents folder as default location
+  const os = require('os');
+  const documentsPath = path.join(os.homedir(), 'Documents');
+  const defaultPath = path.join(documentsPath, suggestedName);
+  
+  // For regular save, try to save to the original location if it exists
+  // This would need the original file path, but for now we'll use save dialog
   const res = await dialog.showSaveDialog(win!, {
-    defaultPath: suggestedName,
-    filters: [{ name: "PDF", extensions: ["pdf"] }]
+    defaultPath: defaultPath,
+    filters: [
+      { name: "PDF Files", extensions: ["pdf"] },
+      { name: "All Files", extensions: ["*"] }
+    ],
+    title: "Save PDF",
+    buttonLabel: "Save",
+    properties: ['showOverwriteConfirmation'] // This enables built-in overwrite confirmation
   });
-  if (res.canceled || !res.filePath) { logToFile("Save PDF dialog canceled"); return null; }
+  
+  if (res.canceled || !res.filePath) { 
+    logToFile("Save PDF dialog canceled"); 
+    return null; 
+  }
+  
+  // Note: With 'showOverwriteConfirmation' property, Electron handles overwrite confirmation automatically
   await fs.writeFile(res.filePath, data);
   logToFile("PDF file saved", res.filePath);
+  return res.filePath;
+});
+
+ipcMain.handle("dialog:savePdfAs", async (_evt, defaultName: string, data: Uint8Array) => {
+  logToFile("Save PDF As dialog triggered", defaultName);
+  
+  // Get user's documents folder as default location
+  const os = require('os');
+  const documentsPath = path.join(os.homedir(), 'Documents');
+  const defaultPath = path.join(documentsPath, defaultName);
+  
+  const res = await dialog.showSaveDialog(win!, {
+    defaultPath: defaultPath,
+    filters: [
+      { name: "PDF Files", extensions: ["pdf"] },
+      { name: "All Files", extensions: ["*"] }
+    ],
+    title: "Save PDF As...",
+    buttonLabel: "Save",
+    properties: ['showOverwriteConfirmation'] // This enables built-in overwrite confirmation
+  });
+  
+  if (res.canceled || !res.filePath) { 
+    logToFile("Save PDF As dialog canceled"); 
+    return null; 
+  }
+  
+  // Note: With 'showOverwriteConfirmation' property, Electron handles overwrite confirmation automatically
+  await fs.writeFile(res.filePath, data);
+  logToFile("PDF file saved as", res.filePath);
   return res.filePath;
 });
 

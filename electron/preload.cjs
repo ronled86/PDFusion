@@ -4,6 +4,7 @@ var electron_1 = require("electron");
 electron_1.contextBridge.exposeInMainWorld("electronAPI", {
     openPdf: function () { return electron_1.ipcRenderer.invoke("dialog:openPdf"); },
     savePdf: function (name, data) { return electron_1.ipcRenderer.invoke("dialog:savePdf", name, data); },
+    savePdfAs: function (defaultName, data) { return electron_1.ipcRenderer.invoke("dialog:savePdfAs", defaultName, data); },
     showInFolder: function (p) { return electron_1.ipcRenderer.invoke("shell:showItemInFolder", p); },
     printPdf: function (data, filename) { return electron_1.ipcRenderer.invoke("print:pdf", data, filename); },
     ipcRenderer: {

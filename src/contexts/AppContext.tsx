@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { OpenedFile } from '../lib/types';
+import { BufferService } from '../services/BufferService';
 
 // State Types
 export interface AppState {
@@ -15,11 +16,19 @@ export interface AppState {
   viewerDimensions: { width: number; height: number };
   scrollMode: 'page' | 'continuous';
   
+  // Page selection state
+  selectedPages: Set<number>;
+  selectionMode: boolean;
+  
   // Dialog states
   showTextDialog: boolean;
   showHighlightDialog: boolean;
   showRedactDialog: boolean;
   showMergeDialog: boolean;
+  showSignatureDialog: boolean;
+  showExtractDialog: boolean;
+  showSettingsDialog: boolean;
+  showHelpDialog: boolean;
   
   // Input states
   textInput: string;
@@ -42,10 +51,19 @@ export type AppAction =
   | { type: 'SET_FIRST_LOAD'; payload: boolean }
   | { type: 'SET_VIEWER_DIMENSIONS'; payload: { width: number; height: number } }
   | { type: 'SET_SCROLL_MODE'; payload: 'page' | 'continuous' }
+  | { type: 'SET_SELECTED_PAGES'; payload: Set<number> }
+  | { type: 'SET_SELECTION_MODE'; payload: boolean }
+  | { type: 'TOGGLE_PAGE_SELECTION'; payload: number }
+  | { type: 'SELECT_ALL_PAGES'; payload: number } // payload is total page count
+  | { type: 'CLEAR_PAGE_SELECTION' }
   | { type: 'SET_TEXT_DIALOG'; payload: boolean }
   | { type: 'SET_HIGHLIGHT_DIALOG'; payload: boolean }
   | { type: 'SET_REDACT_DIALOG'; payload: boolean }
   | { type: 'SET_MERGE_DIALOG'; payload: boolean }
+  | { type: 'SET_SIGNATURE_DIALOG'; payload: boolean }
+  | { type: 'SET_EXTRACT_DIALOG'; payload: boolean }
+  | { type: 'SET_SETTINGS_DIALOG'; payload: boolean }
+  | { type: 'SET_HELP_DIALOG'; payload: boolean }
   | { type: 'SET_TEXT_INPUT'; payload: string }
   | { type: 'SET_HIGHLIGHT_INPUT'; payload: string }
   | { type: 'SET_REDACT_INPUT'; payload: string }
@@ -64,10 +82,16 @@ const initialState: AppState = {
   isFirstLoad: true,
   viewerDimensions: { width: 0, height: 0 },
   scrollMode: 'page',
+  selectedPages: new Set<number>(),
+  selectionMode: false,
   showTextDialog: false,
   showHighlightDialog: false,
   showRedactDialog: false,
   showMergeDialog: false,
+  showSignatureDialog: false,
+  showExtractDialog: false,
+  showSettingsDialog: false,
+  showHelpDialog: false,
   textInput: "",
   highlightInput: "",
   redactInput: "",
@@ -82,7 +106,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_FILE':
       return { ...state, file: action.payload };
     case 'SET_BUFFERS':
-      return { ...state, buffers: action.payload };
+      // Ensure buffers are always safe copies
+      const safeBuffers = action.payload ? BufferService.createSafeBuffer(action.payload) : null;
+      return { ...state, buffers: safeBuffers };
     case 'SET_CACHED_BUFFER':
       return { ...state, cachedBuffer: action.payload };
     case 'SET_PAGE_INDEX':
@@ -95,6 +121,26 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, viewerDimensions: action.payload };
     case 'SET_SCROLL_MODE':
       return { ...state, scrollMode: action.payload };
+    case 'SET_SELECTED_PAGES':
+      return { ...state, selectedPages: action.payload };
+    case 'SET_SELECTION_MODE':
+      return { ...state, selectionMode: action.payload };
+    case 'TOGGLE_PAGE_SELECTION':
+      const newSelectedPages = new Set(state.selectedPages);
+      if (newSelectedPages.has(action.payload)) {
+        newSelectedPages.delete(action.payload);
+      } else {
+        newSelectedPages.add(action.payload);
+      }
+      return { ...state, selectedPages: newSelectedPages };
+    case 'SELECT_ALL_PAGES':
+      const allPages = new Set<number>();
+      for (let i = 0; i < action.payload; i++) {
+        allPages.add(i);
+      }
+      return { ...state, selectedPages: allPages };
+    case 'CLEAR_PAGE_SELECTION':
+      return { ...state, selectedPages: new Set<number>() };
     case 'SET_TEXT_DIALOG':
       return { ...state, showTextDialog: action.payload };
     case 'SET_HIGHLIGHT_DIALOG':
@@ -103,6 +149,14 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, showRedactDialog: action.payload };
     case 'SET_MERGE_DIALOG':
       return { ...state, showMergeDialog: action.payload };
+    case 'SET_SIGNATURE_DIALOG':
+      return { ...state, showSignatureDialog: action.payload };
+    case 'SET_EXTRACT_DIALOG':
+      return { ...state, showExtractDialog: action.payload };
+    case 'SET_SETTINGS_DIALOG':
+      return { ...state, showSettingsDialog: action.payload };
+    case 'SET_HELP_DIALOG':
+      return { ...state, showHelpDialog: action.payload };
     case 'SET_TEXT_INPUT':
       return { ...state, textInput: action.payload };
     case 'SET_HIGHLIGHT_INPUT':
@@ -122,6 +176,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
         showHighlightDialog: false,
         showRedactDialog: false,
         showMergeDialog: false,
+        showSignatureDialog: false,
+        showExtractDialog: false,
+        showSettingsDialog: false,
+        showHelpDialog: false,
         textInput: "",
         highlightInput: "",
         redactInput: "",

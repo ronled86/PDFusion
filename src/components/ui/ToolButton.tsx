@@ -12,6 +12,7 @@ interface ToolButtonProps {
   tooltip?: string;
   showLabel?: boolean;
   glowColor?: string;
+  badge?: string | number;
 }
 
 export const ToolButton: React.FC<ToolButtonProps> = ({ 
@@ -24,7 +25,8 @@ export const ToolButton: React.FC<ToolButtonProps> = ({
   size = 'md',
   tooltip,
   showLabel = true,
-  glowColor = 'blue'
+  glowColor = 'blue',
+  badge
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -97,6 +99,13 @@ export const ToolButton: React.FC<ToolButtonProps> = ({
           >
             {IconSVGs[icon]}
           </svg>
+          
+          {/* Badge */}
+          {badge && (
+            <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">
+              {badge}
+            </div>
+          )}
         </div>
         
         {/* Label */}

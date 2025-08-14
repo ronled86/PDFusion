@@ -73,7 +73,7 @@ export class PrintService {
   }
 
   /**
-   * Handle print in Browser environment with Hebrew text support
+   * Handle print in Browser environment with iframe approach (no popups)
    */
   private static async handleBrowserPrint(
     printBuffer: Uint8Array,
@@ -82,26 +82,97 @@ export class PrintService {
   ): Promise<void> {
     console.log("Browser print mode");
     
-    // Create blob URL for print preview
-    const blob = new Blob([new Uint8Array(printBuffer)], { type: 'application/pdf' });
-    const pdfUrl = URL.createObjectURL(blob);
-    
     try {
-      const printWindow = window.open('', '_blank', 'width=1200,height=800');
+      // Create blob URL for the PDF
+      const blob = new Blob([printBuffer], { type: 'application/pdf' });
+      const pdfUrl = URL.createObjectURL(blob);
       
-      if (!printWindow) {
-        showNotification("Could not open print window. Please check your popup blocker.");
-        URL.revokeObjectURL(pdfUrl);
-        return;
+      // Method 1: Try opening in same tab with print parameter
+      try {
+        const newTab = window.open(pdfUrl + '#toolbar=0&navpanes=0&scrollbar=0', '_blank');
+        if (newTab) {
+          showNotification("PDF opened in new tab - use browser's print function (Ctrl+P)");
+          
+          // Clean up after some time
+          setTimeout(() => {
+            URL.revokeObjectURL(pdfUrl);
+          }, 30000);
+          return;
+        }
+      } catch (error) {
+        console.log("New tab method failed, trying fallback");
       }
-
-      printWindow.document.write(this.generatePrintHTML(fileName, pdfUrl));
-      printWindow.document.close();
       
-      // Clean up the blob URL after some time
-      setTimeout(() => {
+      // Method 2: Iframe approach (fallback)
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.top = '-9999px';
+      iframe.style.left = '-9999px';
+      iframe.style.width = '1px';
+      iframe.style.height = '1px';
+      iframe.style.opacity = '0';
+      iframe.src = pdfUrl;
+      
+      document.body.appendChild(iframe);
+      
+      let iframeLoaded = false;
+      
+      // Wait for iframe to load
+      iframe.onload = () => {
+        if (iframeLoaded) return;
+        iframeLoaded = true;
+        
+        try {
+          // Focus the iframe and trigger print
+          setTimeout(() => {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+            showNotification("Print dialog opened");
+          }, 500);
+          
+          // Clean up after printing
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe);
+            }
+            URL.revokeObjectURL(pdfUrl);
+          }, 5000);
+        } catch (error) {
+          console.error("Error printing from iframe:", error);
+          this.fallbackBrowserPrint(pdfUrl, fileName, showNotification);
+          // Clean up
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+          URL.revokeObjectURL(pdfUrl);
+        }
+      };
+      
+      iframe.onerror = () => {
+        if (iframeLoaded) return;
+        iframeLoaded = true;
+        
+        console.error("Error loading PDF in iframe");
+        this.fallbackBrowserPrint(pdfUrl, fileName, showNotification);
+        // Clean up
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
         URL.revokeObjectURL(pdfUrl);
-      }, 60000);
+      };
+      
+      // Timeout fallback
+      setTimeout(() => {
+        if (!iframeLoaded) {
+          iframeLoaded = true;
+          console.error("Iframe load timeout");
+          this.fallbackBrowserPrint(pdfUrl, fileName, showNotification);
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+          URL.revokeObjectURL(pdfUrl);
+        }
+      }, 10000);
       
     } catch (error) {
       console.error("Error creating PDF blob for printing:", error);
@@ -110,110 +181,29 @@ export class PrintService {
   }
 
   /**
-   * Generate HTML for print preview with Hebrew text support
+   * Fallback browser print method - download for manual printing
    */
-  private static generatePrintHTML(fileName: string, pdfUrl: string): string {
-    return `
-      <html>
-        <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Print Preview - ${fileName}</title>
-          <style>
-            * {
-              box-sizing: border-box;
-              unicode-bidi: plaintext;
-              font-family: Arial, "David", "Tahoma", "Times New Roman", sans-serif;
-            }
-            html, body {
-              margin: 0;
-              padding: 0;
-              height: 100%;
-              direction: ltr;
-              unicode-bidi: plaintext;
-            }
-            .container {
-              display: flex;
-              flex-direction: column;
-              height: 100vh;
-            }
-            .toolbar {
-              background: #f0f0f0;
-              padding: 10px;
-              border-bottom: 1px solid #ccc;
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-            }
-            .toolbar button {
-              padding: 8px 16px;
-              margin-left: 10px;
-              border: 1px solid #ccc;
-              background: #fff;
-              cursor: pointer;
-              border-radius: 4px;
-            }
-            .toolbar button:hover {
-              background: #e0e0e0;
-            }
-            iframe { 
-              flex: 1;
-              border: none; 
-              width: 100%;
-              unicode-bidi: plaintext;
-            }
-            /* Hebrew text support */
-            .rtl-support {
-              direction: rtl;
-              text-align: right;
-              unicode-bidi: embed;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="toolbar">
-              <span>Print Preview - ${fileName}</span>
-              <div>
-                <button onclick="window.print()">Print PDF</button>
-                <button onclick="window.close()">Close</button>
-              </div>
-            </div>
-            <iframe src="${pdfUrl}" id="pdfFrame"></iframe>
-          </div>
-          <script>
-            // Set document direction and encoding for Hebrew support
-            document.documentElement.setAttribute('dir', 'auto');
-            document.documentElement.setAttribute('lang', 'he');
-            document.charset = 'UTF-8';
-            
-            document.getElementById('pdfFrame').onload = function() {
-              console.log('PDF loaded in iframe');
-              
-              // Try to set proper encoding and direction for the iframe content
-              try {
-                const iframeDoc = document.getElementById('pdfFrame').contentDocument;
-                if (iframeDoc) {
-                  iframeDoc.documentElement.setAttribute('dir', 'auto');
-                  iframeDoc.documentElement.setAttribute('lang', 'he');
-                  const meta = iframeDoc.createElement('meta');
-                  meta.setAttribute('charset', 'UTF-8');
-                  if (iframeDoc.head) {
-                    iframeDoc.head.appendChild(meta);
-                  }
-                }
-              } catch (e) {
-                console.log('Could not modify iframe content for Hebrew support:', e);
-              }
-            };
-            
-            // Auto-focus the iframe for better print handling
-            setTimeout(function() {
-              document.getElementById('pdfFrame').contentWindow.focus();
-            }, 1000);
-          </script>
-        </body>
-      </html>
-    `;
+  private static fallbackBrowserPrint(
+    pdfUrl: string,
+    fileName: string,
+    showNotification: (message: string) => void
+  ): void {
+    try {
+      // Create download link as fallback
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = fileName;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification("PDF downloaded - please open it to print");
+    } catch (error) {
+      console.error("Fallback print method failed:", error);
+      showNotification("Print not available in this browser. Please save the file and print manually.");
+    }
   }
+
 }

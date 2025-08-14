@@ -1,6 +1,7 @@
 interface ElectronAPI {
-  openPdf: () => Promise<{ canceled: boolean; filePaths: string[] }>;
-  savePdf: (name: string, data: Uint8Array) => Promise<{ canceled: boolean; filePath?: string }>;
+  openPdf: () => Promise<{ name: string; path?: string; data: Uint8Array }[] | null>;
+  savePdf: (name: string, data: Uint8Array) => Promise<string | null>;
+  savePdfAs: (defaultName: string, data: Uint8Array) => Promise<string | null>;
   showInFolder: (path: string) => Promise<void>;
   printPdf: (data: Uint8Array, filename: string) => Promise<boolean>;
   readFileAsUint8Array: (filePath: string) => Promise<Uint8Array>;
