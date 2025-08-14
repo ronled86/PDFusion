@@ -2,15 +2,37 @@
 
 Cross platform PDF reader and writer built with Electron, React, TypeScript, PDF.js for rendering, and pdf-lib for writing.
 
-## Features
+## ✨ Key Features
 
-- Viewing with zoom and pan
-- Page thumbnails and navigation
-- Text search with highlight preview
-- Ink drawing, add text boxes, highlight by query
-- Merge PDFs, extract pages, rotate
-- Create a new blank PDF, insert blank pages
-- Save and print
+### 🎯 Smart User Interface
+- **Collapsible Toolbar System**: Space-efficient design that maximizes reading area
+  - Auto-hide after 3 seconds of inactivity
+  - Hover to expand with smooth animations
+  - Compact tab with selected page counter
+- **Smart Page Selection**: Intuitive thumbnail-based selection system
+  - Individual checkboxes on page thumbnails
+  - Visual selection indicators with green highlighting
+  - "Select All" and "Clear Selection" controls
+  - Real-time selection counter
+
+### 📄 PDF Operations
+- **Viewing**: Zoom, pan, and navigation with page thumbnails
+- **Text Features**: Search with highlight preview, add text boxes
+- **Page Management**: 
+  - Smart rotation for selected pages or current page
+  - Extract pages with visual selection
+  - Merge PDFs and insert blank pages
+- **Advanced Tools**:
+  - OCR text extraction with Tesseract.js
+  - Graphical signature placement from PNG/JPEG
+  - Content redaction by rasterization
+  - Ink drawing and highlighting capabilities
+
+### 🎨 Modern Design
+- Professional glassmorphism UI with backdrop blur effects
+- Organized tool groups (View, Edit, Pages, Process, Advanced)
+- Professional SVG icons with visual feedback
+- Responsive design optimized for document reading
 
 ## New features
 

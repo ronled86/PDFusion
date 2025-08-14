@@ -198,7 +198,7 @@ const PDFToolsToolbar: React.FC<PDFToolsToolbarProps> = ({
                       groupColor={group.color}
                       isGroupHovered={hoveredGroup === group.id}
                       active={activeTool === tool.id}
-                      badge={'badge' in tool ? tool.badge : undefined}
+                      badge={tool.badge}
                     />
                   ))}
                 </div>

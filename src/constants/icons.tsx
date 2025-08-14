@@ -26,17 +26,22 @@ export const IconSVGs = {
   ),
   rotateRight: (
     <>
-      {/* Smooth clockwise rounded arrow */}
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-            d="M21 12a9 9 0 0 1-9 9c-2.39 0-4.68-.94-6.36-2.64" 
-            fill="none" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-            d="M12 21a9 9 0 0 1-6.36-2.64L4.36 17.08" 
-            fill="none" />
-      {/* Rounded arrow head pointing right */}
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
-            d="M17 10 L21 12 L17 14" 
-            fill="none" />
+      {/* Clown face circle */}
+      <circle cx="12" cy="12" r="9" strokeWidth={2} fill="none" />
+      
+      {/* Clown hat */}
+      <path d="M8 6 L12 2 L16 6 Z" fill="currentColor" strokeWidth={1} />
+      <circle cx="12" cy="4" r="1" fill="currentColor" />
+      
+      {/* Eyes */}
+      <circle cx="9" cy="10" r="1.5" fill="currentColor" />
+      <circle cx="15" cy="10" r="1.5" fill="currentColor" />
+      
+      {/* Red nose */}
+      <circle cx="12" cy="13" r="1" fill="red" stroke="currentColor" strokeWidth={1} />
+      
+      {/* Smile */}
+      <path d="M8 16 Q12 19 16 16" strokeWidth={2} fill="none" strokeLinecap="round" />
     </>
   ),
   refresh: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />,

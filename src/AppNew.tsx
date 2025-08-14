@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { AppProvider, useAppContext } from "./contexts/AppContext";
 import { MainToolbar } from "./components/toolbar/MainToolbar";
-import { PDFToolsToolbar } from "./components/toolbar/PDFToolsToolbar";
+import PDFToolsToolbar from "./components/toolbar/PDFToolsToolbar";
 import { PDFViewerNavigation } from "./components/viewer/PDFViewerNavigation";
 import { Notification } from "./components/ui/Notification";
 import Sidebar from "./components/Sidebar";
@@ -115,15 +115,8 @@ const AppContent: React.FC = () => {
 
       {/* PDF Tools Toolbar */}
       <PDFToolsToolbar
-        onAddText={() => dispatch({ type: 'SET_TEXT_DIALOG', payload: true })}
-        onHighlight={() => dispatch({ type: 'SET_HIGHLIGHT_DIALOG', payload: true })}
-        onSign={() => dispatch({ type: 'SET_SIGNATURE_DIALOG', payload: true })}
         onRotateLeft={handleRotateLeft}
         onRotateRight={handleRotateRight}
-        onExtract={() => dispatch({ type: 'SET_EXTRACT_DIALOG', payload: true })}
-        onOCR={() => operations.performOCR()}
-        onRedact={() => dispatch({ type: 'SET_REDACT_DIALOG', payload: true })}
-        onRefresh={operations.refreshDocument}
         selectedPagesCount={state.selectedPages.size}
       />
 
