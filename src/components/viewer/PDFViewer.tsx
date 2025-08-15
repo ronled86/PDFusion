@@ -371,24 +371,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           }}
         />
 
-        {/* Text Layer for Selection */}
-        {dimensions.width > 0 && currentPage && currentViewport && (
-          <div 
-            className="absolute top-0 left-0 pointer-events-auto z-30"
-            style={{
-              width: dimensions.width,
-              height: dimensions.height,
-              userSelect: 'text',
-              cursor: 'text'
-            }}
-          >
-            <TextLayer 
-              page={currentPage} 
-              viewport={currentViewport}
-            />
-          </div>
-        )}
-
         {/* Drawing Overlay */}
         {dimensions.width > 0 && (
           <div className="absolute top-0 left-0 z-10">
@@ -412,6 +394,36 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
               isTextAtPosition={isTextAtPosition}
               getTextAtPosition={getTextAtPosition}
             />
+          </div>
+        )}
+
+        {/* Text Layer for Selection - Only when NOT using select tool */}
+        {dimensions.width > 0 && currentPage && currentViewport && state.currentTool !== 'select' && (
+          <div 
+            className="absolute top-0 left-0 pointer-events-auto z-30"
+            style={{
+              width: dimensions.width,
+              height: dimensions.height,
+              userSelect: 'text',
+              cursor: 'text'
+            }}
+          >
+            <TextLayer 
+              page={currentPage} 
+              viewport={currentViewport}
+            />
+            
+            {/* Debug info for native text layer */}
+            <div 
+              className="absolute top-2 right-2 bg-green-800/80 text-white text-xs p-2 rounded max-w-xs pointer-events-none font-mono"
+              style={{ zIndex: 1000 }}
+            >
+              <div className="text-green-300 font-bold mb-1">📄 NATIVE TEXT LAYER</div>
+              <div>Tool: {state.currentTool}</div>
+              <div>Zoom: {zoom}x</div>
+              <div>Size: {dimensions.width}x{dimensions.height}</div>
+              <div className="text-green-200">✅ Using PDF.js TextLayer</div>
+            </div>
           </div>
         )}
 

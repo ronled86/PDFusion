@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 
 interface VerticalNavigationProps {
   pageIndex: number;
@@ -36,6 +36,9 @@ export const VerticalNavigation: React.FC<VerticalNavigationProps> = ({
   const [isExpanded, setIsExpanded] = useState(false); // Default collapsed
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [showZoomSlider, setShowZoomSlider] = useState(false);
+  const [zoomInputValue, setZoomInputValue] = useState(Math.round(zoom * 100).toString());
+  const [isTyping, setIsTyping] = useState(false);
 
   // Safe page change with bounds checking
   const handlePageChange = (newIndex: number) => {
@@ -100,9 +103,92 @@ export const VerticalNavigation: React.FC<VerticalNavigationProps> = ({
     }
   };
 
+  // Zoom functionality
+  const toggleZoomSlider = () => {
+    setShowZoomSlider(!showZoomSlider);
+  };
+
+  const handleZoomInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setZoomInputValue(newValue);
+    
+    // Apply zoom immediately (this handles spinner clicks)
+    const numValue = parseInt(newValue, 10);
+    if (!isNaN(numValue) && numValue >= 25 && numValue <= 1000) {
+      onZoomChange(numValue / 100);
+    }
+  };
+
+  const handleZoomInputFocus = () => {
+    setIsTyping(true);
+  };
+
+  const handleZoomInputInput = (e: React.FormEvent<HTMLInputElement>) => {
+    // This handles manual typing
+    const target = e.target as HTMLInputElement;
+    const newValue = target.value;
+    setZoomInputValue(newValue);
+    setIsTyping(true);
+  };
+
+  const handleZoomInputBlur = () => {
+    setIsTyping(false);
+    const value = parseInt(zoomInputValue, 10);
+    if (!isNaN(value) && value >= 25 && value <= 1000) {
+      onZoomChange(value / 100);
+    } else {
+      setZoomInputValue(Math.round(zoom * 100).toString());
+    }
+  };
+
+  const handleZoomInputKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      setIsTyping(false);
+      handleZoomInputBlur();
+    }
+  };
+
+  const handleZoomSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = parseFloat(e.target.value);
+    onZoomChange(value);
+    setZoomInputValue(Math.round(value * 100).toString());
+  };
+
+  const handlePresetZoom = (zoomLevel: number) => {
+    onZoomChange(zoomLevel);
+    setZoomInputValue(Math.round(zoomLevel * 100).toString());
+  };
+
+  // Update zoom input when zoom prop changes (but not when user is typing)
+  useEffect(() => {
+    if (!isTyping) {
+      setZoomInputValue(Math.round(zoom * 100).toString());
+    }
+  }, [zoom, isTyping]);
+
+  // Click outside handler for zoom slider
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showZoomSlider && event.target instanceof Element && !event.target.closest('.zoom-slider-panel')) {
+        setShowZoomSlider(false);
+      }
+    };
+
+    if (showZoomSlider) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showZoomSlider]);
+
   // Drag functionality
   const handleMouseDown = (e: React.MouseEvent) => {
     if (!isMoveable) return;
+    
+    // Don't start drag if clicking on input elements or buttons within the content area
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'INPUT' || target.tagName === 'BUTTON' || target.closest('input') || target.closest('button')) {
+      return;
+    }
     
     setIsDragging(true);
     setDragStart({
@@ -195,12 +281,17 @@ export const VerticalNavigation: React.FC<VerticalNavigationProps> = ({
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: isExpanded ? '200px' : '52px',
-        cursor: isDragging ? 'grabbing' : isMoveable ? 'grab' : 'default'
+        cursor: isDragging ? 'grabbing' : 'default'
       }}
-      onMouseDown={isMoveable ? handleMouseDown : undefined}
     >
       {/* Header */}
-      <div className="p-3 border-b border-gray-300 bg-gray-50/90 rounded-t-lg">
+      <div 
+        className="p-3 border-b border-gray-300 bg-gray-50/90 rounded-t-lg"
+        onMouseDown={isMoveable ? handleMouseDown : undefined}
+        style={{
+          cursor: isDragging ? 'grabbing' : isMoveable ? 'grab' : 'default'
+        }}
+      >
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="w-full flex items-center justify-center hover:bg-gray-100 rounded p-1 transition-colors"
@@ -293,28 +384,113 @@ export const VerticalNavigation: React.FC<VerticalNavigationProps> = ({
             </svg>
           </button>
 
-          {/* Zoom Level */}
-          {isExpanded ? (
-            <div className="px-3 py-2">
-              <select
-                value={zoom}
-                onChange={handleZoomSelect}
-                className="w-full text-xs border border-gray-300 rounded px-2 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          {/* Zoom Level - Adobe Style */}
+          <div className="relative">
+            {isExpanded ? (
+              <button
+                onClick={toggleZoomSlider}
+                className="w-full p-2.5 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                title="Zoom Controls"
               >
-                {zoomLevels.map(level => (
-                  <option key={level} value={level}>
-                    {Math.round(level * 100)}%
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="px-2 py-1">
-              <div className="text-xs text-center text-gray-600 font-medium">
-                {currentZoomPercent}%
+                <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8"/>
+                  <path d="m21 21-4.35-4.35"/>
+                </svg>
+                <span className="ml-2 text-xs">{Math.round(zoom * 100)}%</span>
+              </button>
+            ) : (
+              <button
+                onClick={toggleZoomSlider}
+                className="w-full px-2 py-1 hover:bg-gray-100 transition-colors cursor-pointer"
+                title="Zoom Controls"
+              >
+                <div className="text-xs text-center text-gray-600 font-medium">
+                  {Math.round(zoom * 100)}%
+                </div>
+              </button>
+            )}
+
+            {/* Zoom Slider Panel */}
+            {showZoomSlider && (
+              <div className="zoom-slider-panel absolute right-full top-0 mr-2 bg-white border border-gray-300 rounded-lg shadow-lg p-2 z-50" style={{ width: '90px' }}>
+                {/* Zoom Input */}
+                <div className="mb-3">
+                  <div className="flex items-center justify-center">
+                    <input
+                      type="number"
+                      min="25"
+                      max="1000"
+                      step="5"
+                      value={zoomInputValue}
+                      onChange={handleZoomInputChange}
+                      onFocus={handleZoomInputFocus}
+                      onInput={handleZoomInputInput}
+                      onBlur={handleZoomInputBlur}    
+                      onKeyPress={handleZoomInputKeyPress}
+                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded text-center focus:ring-1 focus:ring-blue-500 focus:border-transparent bg-white"
+                      style={{ fontSize: '12px' }}
+                    />
+                    <span className="ml-1 text-xs text-gray-500">%</span>
+                  </div>
+                </div>
+
+                {/* Vertical Slider */}
+                <div className="mb-3 flex justify-center">
+                  <div className="relative h-28 w-5 flex items-center justify-center">
+                    <input
+                      type="range"
+                      min="0.25"
+                      max="10"
+                      step="0.25"
+                      value={zoom}
+                      onChange={handleZoomSliderChange}
+                      className="vertical-slider absolute transform -rotate-90 origin-center"
+                      style={{
+                        width: '90px',
+                        height: '5px',
+                        background: 'linear-gradient(to right, #e5e7eb 0%, #3b82f6 50%, #e5e7eb 100%)',
+                        outline: 'none',
+                        borderRadius: '3px',
+                        appearance: 'none',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Preset Zoom Buttons */}
+                <div className="space-y-1">
+                  <button
+                    onClick={() => handlePresetZoom(1)}
+                    className="w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    style={{ fontSize: '10px' }}
+                  >
+                    100%
+                  </button>
+                  <button
+                    onClick={() => handlePresetZoom(1.25)}
+                    className="w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    style={{ fontSize: '10px' }}
+                  >
+                    125%
+                  </button>
+                  <button
+                    onClick={() => handlePresetZoom(1.5)}
+                    className="w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    style={{ fontSize: '10px' }}
+                  >
+                    150%
+                  </button>
+                  <button
+                    onClick={() => handlePresetZoom(2)}
+                    className="w-full px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+                    style={{ fontSize: '10px' }}
+                  >
+                    200%
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Zoom In */}
           <button

@@ -32,12 +32,37 @@ export const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
 }) => {
   const { state } = useAppContext();
   const overlayRef = useRef<HTMLDivElement>(null);
+  
+  // Debug: Log when overlay mounts/unmounts
+  useEffect(() => {
+    console.log('🔧 TextSelectionOverlay mounted with:', { 
+      width, 
+      height, 
+      zoom, 
+      currentTool: state.currentTool 
+    });
+    return () => console.log('🔧 TextSelectionOverlay unmounted');
+  }, []);
+  
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null);
   const [selectedText, setSelectedText] = useState<string>('');
   const [selectedRegions, setSelectedRegions] = useState<any[]>([]);
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
+  
+  // Debug state for coordinate testing
+  const [debugInfo, setDebugInfo] = useState({
+    mouseX: 0,
+    mouseY: 0,
+    overlayX: 0,
+    overlayY: 0,
+    isTextAtMouse: false,
+    textAtMouse: '',
+    lastClickResult: null as any,
+    zoom: zoom,
+    overlayDimensions: { width, height }
+  });
 
   // Handle mouse down for text selection
   const handleMouseDown = useCallback((event: React.MouseEvent) => {
@@ -69,11 +94,57 @@ export const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
     const isTextHere = isTextAtPosition(x, y);
     const textAtPosition = getTextAtPosition(x, y);
     
+    // Enhanced debug logging with comprehensive coordinate info
+    const clickDebugInfo = {
+      // Mouse event coordinates
+      clientX: event.clientX,
+      clientY: event.clientY,
+      
+      // Overlay bounding rect
+      rectLeft: rect.left,
+      rectTop: rect.top,
+      rectWidth: rect.width,
+      rectHeight: rect.height,
+      
+      // Calculated overlay coordinates
+      overlayX: x,
+      overlayY: y,
+      
+      // Overlay dimensions from props
+      overlayWidth: width,
+      overlayHeight: height,
+      
+      // Zoom level
+      zoom: zoom,
+      
+      // Text detection results
+      isTextHere,
+      textAtPosition,
+      
+      // Current tool
+      currentTool: state.currentTool
+    };
+    
+    console.log('🎯 CLICK TEST:', clickDebugInfo);
+    
+    // Store the last click result for the debug display
+    setDebugInfo(prev => ({
+      ...prev,
+      lastClickResult: clickDebugInfo
+    }));
+
     console.log('Text check:', { 
       isTextHere, 
       textAtPosition,
-      x, 
-      y 
+      overlayCoords: { x, y },
+      zoom,
+      overlayDimensions: { width, height },
+      rectBounds: { 
+        left: rect.left, 
+        top: rect.top, 
+        width: rect.width, 
+        height: rect.height 
+      }
     });
     
     if (!isTextHere) return;
@@ -91,20 +162,37 @@ export const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
 
   // Handle mouse move during selection
   const handleMouseMove = useCallback((event: React.MouseEvent) => {
-    if (!isSelecting || !selectionBox) return;
-
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
+    // Update debug info for coordinate tracking
+    const isTextHere = isTextAtPosition(x, y);
+    const textAtPosition = getTextAtPosition(x, y);
+
+    setDebugInfo(prev => ({
+      ...prev,
+      mouseX: event.clientX,
+      mouseY: event.clientY,
+      overlayX: x,
+      overlayY: y,
+      isTextAtMouse: isTextHere,
+      textAtMouse: textAtPosition || '',
+      zoom: zoom,
+      overlayDimensions: { width, height }
+    }));
+
+    // Handle selection dragging
+    if (!isSelecting || !selectionBox) return;
+
     setSelectionBox(prev => prev ? {
       ...prev,
       endX: x,
       endY: y
     } : null);
-  }, [isSelecting, selectionBox]);
+  }, [isSelecting, selectionBox, isTextAtPosition, getTextAtPosition, zoom, width, height]);
 
   // Handle mouse up to complete selection
   const handleMouseUp = useCallback((event: React.MouseEvent) => {
@@ -290,6 +378,27 @@ export const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
       {showSelectionBox && (
         <div style={getSelectionBoxStyle()} />
       )}
+
+      {/* Debug coordinate display */}
+      <div 
+        className="absolute top-2 left-2 bg-black/80 text-white text-xs p-2 rounded max-w-xs pointer-events-none font-mono"
+        style={{ zIndex: 1000 }}
+      >
+        <div className="text-yellow-300 font-bold mb-1">🔍 COORDINATE DEBUG</div>
+        <div>Mouse: ({debugInfo.mouseX}, {debugInfo.mouseY})</div>
+        <div>Overlay: ({debugInfo.overlayX.toFixed(1)}, {debugInfo.overlayY.toFixed(1)})</div>
+        <div>Text: {debugInfo.isTextAtMouse ? '✅' : '❌'} "{debugInfo.textAtMouse}"</div>
+        <div>Zoom: {debugInfo.zoom}x</div>
+        <div>Size: {debugInfo.overlayDimensions.width}x{debugInfo.overlayDimensions.height}</div>
+        {debugInfo.lastClickResult && (
+          <div className="mt-2 pt-2 border-t border-gray-500">
+            <div className="text-red-300 font-bold">Last Click:</div>
+            <div>Text Found: {debugInfo.lastClickResult.isTextHere ? '✅' : '❌'}</div>
+            <div>Content: "{debugInfo.lastClickResult.textAtPosition || 'none'}"</div>
+            <div>Coords: ({debugInfo.lastClickResult.overlayX.toFixed(1)}, {debugInfo.lastClickResult.overlayY.toFixed(1)})</div>
+          </div>
+        )}
+      </div>
 
       {/* Context menu */}
       {showContextMenu && selectedText && (

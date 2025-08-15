@@ -29,7 +29,14 @@ export const useContentAnalysis = ({
     const analyzePageContent = async () => {
       setIsAnalyzing(true);
       try {
+        console.log('Starting content analysis for page:', pageNumber);
         const analysis = await contentAnalyzer.analyzePage(pdfPage, viewport, pageNumber);
+        console.log('Content analysis completed:', {
+          pageNumber,
+          textBlocks: analysis.textBlocks.length,
+          regions: analysis.regions.length,
+          images: analysis.images.length
+        });
         setPageAnalysis(analysis);
       } catch (error) {
         console.warn('Content analysis failed:', error);

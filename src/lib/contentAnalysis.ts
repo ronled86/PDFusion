@@ -89,7 +89,9 @@ class ContentAnalyzer {
     try {
       // Analyze text content
       const textContent = await page.getTextContent();
+      console.log('Text content items:', textContent.items.length);
       const textRegions = this.analyzeTextContent(textContent, viewport);
+      console.log('Text regions created:', textRegions.length);
       regions.push(...textRegions);
       textBlocks.push(...textRegions);
 
@@ -124,6 +126,8 @@ class ContentAnalyzer {
     const regions: ContentRegion[] = [];
     const items = textContent.items;
 
+    console.log('Analyzing text content, items:', items.length);
+
     for (const item of items) {
       if (!item.transform || !item.str?.trim()) continue;
 
@@ -135,15 +139,15 @@ class ContentAnalyzer {
       const y = viewport.height - transform[5];
       const fontSize = Math.abs(transform[0]);
       
-      // Estimate text dimensions
-      const textWidth = item.str.length * fontSize * 0.6;
-      const textHeight = fontSize;
+      // More accurate text dimensions based on font metrics
+      const textWidth = item.str.length * fontSize * 0.5; // Reduced multiplier for better accuracy
+      const textHeight = fontSize * 1.2; // Account for line height
 
-      regions.push({
-        type: 'text',
+      const region = {
+        type: 'text' as const,
         bounds: {
           x: x,
-          y: y,
+          y: y - fontSize, // Adjust y to account for text baseline
           width: textWidth,
           height: textHeight
         },
@@ -153,9 +157,21 @@ class ContentAnalyzer {
           textContent: item.str,
           fontFamily: item.fontName
         }
-      });
+      };
+
+      regions.push(region);
+
+      // Log first few regions for debugging
+      if (regions.length <= 5) {
+        console.log(`Text region ${regions.length}:`, {
+          text: item.str,
+          bounds: region.bounds,
+          transform: transform
+        });
+      }
     }
 
+    console.log(`Created ${regions.length} text regions`);
     return regions;
   }
 
@@ -299,12 +315,15 @@ class ContentAnalyzer {
    */
   private findRegionAt(x: number, y: number, regions: ContentRegion[]): ContentRegion | null {
     // Sort by confidence and find the best match
-    const candidates = regions.filter(region => 
-      x >= region.bounds.x &&
-      x <= region.bounds.x + region.bounds.width &&
-      y >= region.bounds.y &&
-      y <= region.bounds.y + region.bounds.height
-    );
+    const candidates = regions.filter(region => {
+      const bounds = region.bounds;
+      // Add some padding to make text selection more forgiving
+      const padding = 2;
+      return x >= bounds.x - padding &&
+             x <= bounds.x + bounds.width + padding &&
+             y >= bounds.y - padding &&
+             y <= bounds.y + bounds.height + padding;
+    });
 
     if (candidates.length === 0) return null;
 
@@ -352,11 +371,24 @@ class ContentAnalyzer {
       const bounds = region.bounds;
       
       // Check if text region intersects with selection area
-      if (bounds.x < maxX && bounds.x + bounds.width > minX &&
-          bounds.y < maxY && bounds.y + bounds.height > minY) {
+      // Make selection more forgiving by reducing the required overlap
+      const overlapX = Math.max(0, Math.min(maxX, bounds.x + bounds.width) - Math.max(minX, bounds.x));
+      const overlapY = Math.max(0, Math.min(maxY, bounds.y + bounds.height) - Math.max(minY, bounds.y));
+      
+      // Include if there's any overlap or if the region is within the selection area
+      if (overlapX > 0 && overlapY > 0) {
         selectedRegions.push(region);
       }
     }
+
+    // Sort by y position first, then x position for reading order
+    selectedRegions.sort((a, b) => {
+      const yDiff = a.bounds.y - b.bounds.y;
+      if (Math.abs(yDiff) < 5) { // Same line (within 5px)
+        return a.bounds.x - b.bounds.x;
+      }
+      return yDiff;
+    });
 
     return selectedRegions;
   }
