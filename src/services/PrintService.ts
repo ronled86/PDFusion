@@ -84,7 +84,7 @@ export class PrintService {
     
     try {
       // Create blob URL for the PDF
-      const blob = new Blob([printBuffer], { type: 'application/pdf' });
+      const blob = new Blob([new Uint8Array(printBuffer)], { type: 'application/pdf' });
       const pdfUrl = URL.createObjectURL(blob);
       
       // Method 1: Try opening in same tab with print parameter

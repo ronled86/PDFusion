@@ -53,7 +53,8 @@ export const savePdfFile = async (name: string, data: Uint8Array): Promise<strin
     return result;
   } else {
     // Browser mode - download file
-    const blob = new Blob([data], { type: 'application/pdf' });
+    const safeData = new Uint8Array(data);
+    const blob = new Blob([safeData], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -83,7 +84,8 @@ export const savePdfFileAs = async (defaultName: string, data: Uint8Array): Prom
       // Ensure .pdf extension
       const finalName = fileName.endsWith('.pdf') ? fileName : fileName + '.pdf';
       
-      const blob = new Blob([data], { type: 'application/pdf' });
+      const safeData = new Uint8Array(data);
+      const blob = new Blob([safeData], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
