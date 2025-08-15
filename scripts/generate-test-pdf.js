@@ -2,6 +2,31 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { writeFileSync } from 'fs';
 import path from 'path';
 
+// Helper function to wrap text properly
+function wrapText(text, font, fontSize, maxWidth) {
+  const words = text.split(' ');
+  const lines = [];
+  let currentLine = '';
+  
+  for (const word of words) {
+    const testLine = currentLine + (currentLine ? ' ' : '') + word;
+    const textWidth = font.widthOfTextAtSize(testLine, fontSize);
+    
+    if (textWidth > maxWidth && currentLine) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  
+  if (currentLine) {
+    lines.push(currentLine);
+  }
+  
+  return lines;
+}
+
 async function generateTestPDF() {
   console.log('🔄 Generating comprehensive test PDF...');
   
@@ -52,14 +77,19 @@ async function generateTestPDF() {
     color: rgb(0, 0.2, 0.8),
   });
   
-  page1.drawText('This document contains multiple pages with various content types\nto test PDF rendering performance, text selection, and scrolling.', {
-    x: 50,
-    y: height - 300,
-    size: 14,
-    font: helveticaFont,
-    color: rgb(0, 0, 0),
-    lineHeight: 20,
-  });
+  const descriptionText = 'This document contains multiple pages with various content types to test PDF rendering performance, text selection, and scrolling functionality.';
+  const descriptionLines = wrapText(descriptionText, helveticaFont, 14, 500);
+  let descY = height - 300;
+  for (const line of descriptionLines) {
+    page1.drawText(line, {
+      x: 50,
+      y: descY,
+      size: 14,
+      font: helveticaFont,
+      color: rgb(0, 0, 0),
+    });
+    descY -= 20;
+  }
   
   // Add test instructions
   const instructions = [
@@ -113,47 +143,27 @@ Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium dolor
 
 Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.`;
 
-  // Draw text in chunks to fit on page
-  const lines = loremText.split('\n');
+  // Process paragraphs with proper text wrapping
+  const paragraphs = loremText.split('\n\n');
   let textY = height - 100;
   
-  for (const line of lines) {
-    if (textY < 100) break; // Don't go too close to bottom
+  for (const paragraph of paragraphs) {
+    if (textY < 100) break;
     
-    const words = line.split(' ');
-    let currentLine = '';
-    
-    for (const word of words) {
-      const testLine = currentLine + (currentLine ? ' ' : '') + word;
-      const textWidth = helveticaFont.widthOfTextAtSize(testLine, 12);
+    const lines = wrapText(paragraph.trim(), helveticaFont, 12, 500);
+    for (const line of lines) {
+      if (textY < 100) break;
       
-      if (textWidth > 500 && currentLine) {
-        // Draw current line and start new one
-        page2.drawText(currentLine, {
-          x: 50,
-          y: textY,
-          size: 12,
-          font: helveticaFont,
-          color: rgb(0, 0, 0),
-        });
-        textY -= 18;
-        currentLine = word;
-      } else {
-        currentLine = testLine;
-      }
-    }
-    
-    // Draw remaining text
-    if (currentLine) {
-      page2.drawText(currentLine, {
+      page2.drawText(line, {
         x: 50,
         y: textY,
         size: 12,
         font: helveticaFont,
         color: rgb(0, 0, 0),
       });
-      textY -= 24; // Extra space between paragraphs
+      textY -= 18;
     }
+    textY -= 10; // Extra space between paragraphs
   }
 
   // Page 3: Different Font Styles
@@ -297,7 +307,7 @@ Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed 
     color: rgb(0, 0, 0),
   });
 
-  // Page 5: Dense Text for Performance Testing
+  // Page 5: Dense Text for Performance Testing  
   console.log('📄 Creating Page 5: Dense Text');
   const page5 = pdfDoc.addPage([612, 792]);
   
@@ -309,20 +319,26 @@ Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed 
     color: rgb(0, 0, 0),
   });
   
-  // Generate lots of text for performance testing
-  const denseText = 'This is line number ';
+  // Generate lots of text lines for performance testing
   let denseY = height - 100;
   let lineNumber = 1;
   
   while (denseY > 50) {
-    page5.drawText(`${denseText}${lineNumber} - Testing continuous mode rendering performance with dense text content.`, {
-      x: 50,
-      y: denseY,
-      size: 9,
-      font: helveticaFont,
-      color: rgb(0, 0, 0),
-    });
-    denseY -= 12;
+    const lineText = `Line ${lineNumber}: Testing continuous mode rendering performance with dense text content and numbered lines.`;
+    const wrappedLines = wrapText(lineText, helveticaFont, 9, 500);
+    
+    for (const wrappedLine of wrappedLines) {
+      if (denseY <= 50) break;
+      
+      page5.drawText(wrappedLine, {
+        x: 50,
+        y: denseY,
+        size: 9,
+        font: helveticaFont,
+        color: rgb(0, 0, 0),
+      });
+      denseY -= 12;
+    }
     lineNumber++;
   }
 
@@ -339,7 +355,7 @@ Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed 
       color: rgb(0.1 * pageNum, 0, 0.8),
     });
     
-    // Add varied content for each page
+    // Add varied content for each page with proper wrapping
     const content = [
       'This page tests continuous scrolling performance.',
       'Each page has unique content to test memory management.',
@@ -351,28 +367,44 @@ Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed 
     
     let contentY = height - 100;
     for (const line of content) {
-      page.drawText(line, {
-        x: 50,
-        y: contentY,
-        size: 12,
-        font: helveticaFont,
-        color: rgb(0, 0, 0),
-      });
-      contentY -= 20;
+      if (!line) { // Empty line
+        contentY -= 20;
+        continue;
+      }
+      
+      const wrappedLines = wrapText(line, helveticaFont, 12, 500);
+      for (const wrappedLine of wrappedLines) {
+        page.drawText(wrappedLine, {
+          x: 50,
+          y: contentY,
+          size: 12,
+          font: helveticaFont,
+          color: rgb(0, 0, 0),
+        });
+        contentY -= 18;
+      }
     }
     
-    // Add page-specific numbered content
-    for (let i = 1; i <= 25; i++) {
-      page.drawText(`Page ${pageNum}, Line ${i}: This is test content for rendering validation.`, {
-        x: 50,
-        y: contentY,
-        size: 10,
-        font: helveticaFont,
-        color: rgb(0.3, 0.3, 0.3),
-      });
-      contentY -= 15;
+    // Add page-specific numbered content with proper spacing
+    for (let i = 1; i <= 20; i++) {
+      if (contentY < 80) break;
       
-      if (contentY < 50) break;
+      const testText = `Page ${pageNum}, Section ${i}: This is test content for rendering validation and text selection testing.`;
+      const wrappedLines = wrapText(testText, helveticaFont, 10, 500);
+      
+      for (const wrappedLine of wrappedLines) {
+        if (contentY < 80) break;
+        
+        page.drawText(wrappedLine, {
+          x: 50,
+          y: contentY,
+          size: 10,
+          font: helveticaFont,
+          color: rgb(0.3, 0.3, 0.3),
+        });
+        contentY -= 14;
+      }
+      contentY -= 8; // Space between sections
     }
     
     // Add page number at bottom

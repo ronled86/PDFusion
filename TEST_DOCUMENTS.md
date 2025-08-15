@@ -27,10 +27,10 @@ This directory contains comprehensive test PDF documents designed to validate va
 **Purpose**: Stress testing and performance validation
 
 **Content Structure**:
-- **50 pages** of structured content
-- Each page contains ~40 lines of text
+- **50 pages** of structured content with proper text wrapping
+- Each page contains multiple paragraphs with varied content
 - Progressive color indicators for visual verification
-- Page progress indicators
+- Page progress indicators and chapter markers
 - Unique content per page for memory testing
 
 **Test Scenarios**:
@@ -40,9 +40,6 @@ This directory contains comprehensive test PDF documents designed to validate va
 - 📊 Render queue management
 - 🔄 Page-to-page navigation speed
 - 💾 Browser memory usage monitoring
-
-### 3. `test-document.pdf` (Original)
-**Purpose**: Legacy testing (existing document)
 
 ## 🧪 Testing Guidelines
 
