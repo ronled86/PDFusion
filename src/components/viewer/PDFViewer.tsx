@@ -226,8 +226,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
         return;
       }
 
-      console.log(`Rendering page ${pageIndex + 1} of ${pageCount}`);
-
       try {
         // Cancel any existing render task
         if (renderTaskRef.current) {
@@ -252,8 +250,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           canvasRef.current
         );
         
-        console.log(`Created render task for page ${pageIndex + 1}, viewport: ${viewport.width}x${viewport.height}`);
-        
         if (!isMountedRef.current) {
           // Cancel if component unmounted during setup
           try {
@@ -274,7 +270,6 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
         
         // Wait for render to complete
         await renderTask.promise;
-        console.log(`Successfully rendered page ${pageIndex + 1}`);
         
         if (!isMountedRef.current) return;
         

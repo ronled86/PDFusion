@@ -322,7 +322,8 @@ ipcMain.handle("print:pdf", async (_evt, data: Uint8Array, filename: string) => 
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
-        webSecurity: false // Allow file:// URLs for printing
+        webSecurity: true, // Keep security enabled
+        allowRunningInsecureContent: false
       },
       show: false
     });

@@ -1,0 +1,46 @@
+# Security Policy for PDFusion
+
+## Security Practices
+
+### Electron Security
+- ✅ Context isolation enabled
+- ✅ Node integration disabled
+- ✅ Web security enabled
+- ✅ Secure preload script with controlled API exposure
+- ✅ No dangerous permissions exposed to renderer
+
+### Dependencies
+- ✅ Regular security audits via `npm audit`
+- ✅ Automatic dependency updates for security patches
+- ✅ Minimal dependency footprint
+
+### File Handling
+- ✅ File operations sandboxed through Electron's secure APIs
+- ✅ No direct file system access from renderer
+- ✅ Temporary files properly cleaned up
+- ✅ Input validation for file paths
+
+### Code Security
+- ✅ No hardcoded secrets or credentials
+- ✅ Environment variables properly handled
+- ✅ CORS headers configured
+- ✅ TypeScript for type safety
+
+### Build Security
+- ✅ Development files excluded from production builds
+- ✅ Source maps disabled in production
+- ✅ Secure build process without external scripts
+
+## Security Checklist
+
+Before each release:
+- [ ] Run `npm audit` and fix any vulnerabilities
+- [ ] Review all file operations and API exposures
+- [ ] Ensure no sensitive data in repository
+- [ ] Verify .gitignore covers all sensitive patterns
+- [ ] Test in production build environment
+- [ ] Verify Electron security best practices
+
+## Reporting Security Issues
+
+Please report security vulnerabilities to: security@[your-domain]

@@ -14,7 +14,18 @@ export default defineConfig({
       ]
     })
   ],
-  build: { outDir: "dist" },
+  build: { 
+    outDir: "dist",
+    minify: 'terser',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
+  },
+  esbuild: {
+    drop: ['console', 'debugger'], // Remove console.log and debugger in production
+  },
   server: { 
     port: 6005,
     headers: {

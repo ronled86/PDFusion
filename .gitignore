@@ -23,3 +23,44 @@ Thumbs.db
 *.dmg
 *.exe
 *.AppImage
+
+# Security & Sensitive Files
+.env*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+*.der
+config/secrets.json
+config/local.json
+secrets/
+credentials/
+*.backup
+*.bak
+*.swp
+*.swo
+*~
+
+# Temporary & Cache Files
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+.nyc_output/
+coverage/
+.coverage
+*.lcov
+
+# Development & Testing
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+test-results/
+screenshots/
+downloads/
+playwright-report/
+test-output/
