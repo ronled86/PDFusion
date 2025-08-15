@@ -419,7 +419,7 @@ Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed 
 
   // Save the PDF
   const pdfBytes = await pdfDoc.save();
-  const outputPath = path.join(process.cwd(), 'test-document-comprehensive.pdf');
+  const outputPath = path.join(process.cwd(), 'tests', 'documents', 'test-document-comprehensive.pdf');
   
   writeFileSync(outputPath, pdfBytes);
   console.log(`✅ Generated comprehensive test PDF: ${outputPath}`);

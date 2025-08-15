@@ -143,7 +143,7 @@ async function generateLargeTestPDF() {
   }
   
   const pdfBytes = await pdfDoc.save();
-  const outputPath = path.join(process.cwd(), 'test-document-large.pdf');
+  const outputPath = path.join(process.cwd(), 'tests', 'documents', 'test-document-large.pdf');
   
   writeFileSync(outputPath, pdfBytes);
   console.log(`✅ Generated large test PDF: ${outputPath}`);

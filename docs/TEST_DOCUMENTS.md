@@ -4,7 +4,7 @@ This directory contains comprehensive test PDF documents designed to validate va
 
 ## 📄 Test Documents
 
-### 1. `test-document-comprehensive.pdf` (10 pages, ~11KB)
+### 1. `tests/documents/test-document-comprehensive.pdf` (10 pages, ~11KB)
 **Purpose**: Complete feature testing and validation
 
 **Content Structure**:
@@ -23,7 +23,7 @@ This directory contains comprehensive test PDF documents designed to validate va
 - ✅ Drawing and highlighting tools
 - ✅ Memory management with medium-sized documents
 
-### 2. `test-document-large.pdf` (50 pages, ~76KB)
+### 2. `tests/documents/test-document-large.pdf` (50 pages, ~76KB)
 **Purpose**: Stress testing and performance validation
 
 **Content Structure**:
@@ -44,7 +44,7 @@ This directory contains comprehensive test PDF documents designed to validate va
 ## 🧪 Testing Guidelines
 
 ### Basic Testing Workflow
-1. **Open Test Document**: Load `test-document-comprehensive.pdf`
+1. **Open Test Document**: Load `tests/documents/test-document-comprehensive.pdf`
 2. **Test View Modes**: Switch between page and continuous modes
 3. **Test Navigation**: Use thumbnails, arrow keys, and page controls
 4. **Test Text Selection**: Try selecting text across different pages
@@ -52,7 +52,7 @@ This directory contains comprehensive test PDF documents designed to validate va
 6. **Test Tools**: Try drawing, highlighting, and annotation tools
 
 ### Performance Testing Workflow
-1. **Load Large Document**: Open `test-document-large.pdf`
+1. **Load Large Document**: Open `tests/documents/test-document-large.pdf`
 2. **Monitor Memory**: Check browser memory usage in dev tools
 3. **Test Continuous Scrolling**: Scroll rapidly through all 50 pages
 4. **Test Memory Cleanup**: Verify memory doesn't continuously increase
