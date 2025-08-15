@@ -3,7 +3,7 @@
 A modern, high-performance PDF viewer and editor built with React, TypeScript, and Electron. PDFusion combines the power of Adobe-style interface design with cutting-edge web technologies to deliver a seamless PDF experience.
 
 ![PDFusion](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 ![Electron](https://img.shields.io/badge/electron-31.3.1-blue.svg)
 ![React](https://img.shields.io/badge/react-18.3.1-blue.svg)
 
@@ -108,7 +108,7 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed release notes and version history.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
 ## 🎯 Project Status
 
