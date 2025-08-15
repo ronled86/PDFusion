@@ -47,11 +47,36 @@ export const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
     const rect = overlayRef.current?.getBoundingClientRect();
     if (!rect) return;
 
+    // Get coordinates relative to the overlay
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
+    // Debug logging
+    console.log('Mouse click:', { 
+      clientX: event.clientX, 
+      clientY: event.clientY,
+      rectLeft: rect.left,
+      rectTop: rect.top,
+      overlayX: x, 
+      overlayY: y,
+      overlayWidth: rect.width,
+      overlayHeight: rect.height,
+      canvasWidth: width,
+      canvasHeight: height
+    });
+
     // Check if we're clicking on text
-    if (!isTextAtPosition(x, y)) return;
+    const isTextHere = isTextAtPosition(x, y);
+    const textAtPosition = getTextAtPosition(x, y);
+    
+    console.log('Text check:', { 
+      isTextHere, 
+      textAtPosition,
+      x, 
+      y 
+    });
+    
+    if (!isTextHere) return;
 
     event.preventDefault();
     setIsSelecting(true);

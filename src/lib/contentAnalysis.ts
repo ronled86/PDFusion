@@ -128,21 +128,22 @@ class ContentAnalyzer {
       if (!item.transform || !item.str?.trim()) continue;
 
       const transform = item.transform;
-      const [scaleX, , , scaleY, x, y] = transform;
       
-      // Convert PDF coordinates to canvas coordinates
-      const canvasPoint = viewport.convertToViewportPoint(x, y);
-      const fontSize = Math.abs(scaleY);
+      // Use EXACT same coordinates as TextLayer:
+      // TextLayer: left = transform[4], top = viewport.height - transform[5]
+      const x = transform[4];
+      const y = viewport.height - transform[5];
+      const fontSize = Math.abs(transform[0]);
       
-      // Estimate text dimensions (rough approximation)
+      // Estimate text dimensions
       const textWidth = item.str.length * fontSize * 0.6;
       const textHeight = fontSize;
 
       regions.push({
         type: 'text',
         bounds: {
-          x: canvasPoint[0],
-          y: canvasPoint[1] - textHeight,
+          x: x,
+          y: y,
           width: textWidth,
           height: textHeight
         },

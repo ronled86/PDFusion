@@ -346,7 +346,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   // Original single-page viewer for page mode
   return (
     <div 
-      className={`flex items-center justify-center p-4 pdf-viewer-container ${className}`}
+      className={`flex items-center justify-center pdf-viewer-container ${className}`}
       ref={containerRef}
       onWheelCapture={handleScroll} // Use onWheelCapture to avoid passive event listener
     >
