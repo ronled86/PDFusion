@@ -25,7 +25,7 @@ export const MainToolbar: React.FC<MainToolbarProps> = ({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div className="relative">
+    <div className="sticky top-0 z-50">
       {/* Glassmorphism background with gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-blue-600/10 via-purple-600/10 to-blue-600/10 backdrop-blur-xl border-b border-white/20"></div>
       
@@ -94,7 +94,8 @@ export const MainToolbar: React.FC<MainToolbarProps> = ({
                   <QuickActionButton 
                     icon={
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3-3m0 0l-3 3m3-3v12" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 13h6m-3-3v6" />
                       </svg>
                     }
                     label="Save As"

@@ -201,3 +201,37 @@ export const rotatePages = async (buffer: Uint8Array, pageIndices: number[], ang
   console.log(`Multiple pages rotation saved, new buffer size: ${result.length}`);
   return result;
 };
+
+export const deletePage = async (buffer: Uint8Array, pageIndex: number) => {
+  console.log(`deletePage called: pageIndex=${pageIndex}, bufferSize=${buffer.length}`);
+  
+  if (!validatePdfBuffer(buffer)) {
+    throw new Error("Invalid PDF buffer");
+  }
+
+  try {
+    const pdfDoc = await PDFDocument.load(buffer);
+    const totalPages = pdfDoc.getPageCount();
+    console.log(`PDF loaded successfully, pages: ${totalPages}`);
+    
+    if (pageIndex < 0 || pageIndex >= totalPages) {
+      throw new Error(`Page index ${pageIndex} is out of range (0-${totalPages - 1})`);
+    }
+
+    if (totalPages === 1) {
+      throw new Error("Cannot delete the only page in the document");
+    }
+
+    // Create array of page indices to keep (all except the one to delete)
+    const pagesToKeep = Array.from({ length: totalPages }, (_, i) => i)
+      .filter(i => i !== pageIndex);
+
+    console.log(`Keeping pages: [${pagesToKeep.join(', ')}]`);
+    const result = await extractPages(buffer, pagesToKeep);
+    console.log(`Page ${pageIndex + 1} deleted, new buffer size: ${result.length}`);
+    return result;
+  } catch (error) {
+    console.error("Error deleting page:", error);
+    throw error;
+  }
+};

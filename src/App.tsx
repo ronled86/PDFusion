@@ -1,13 +1,17 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import { AppProvider, useAppContext } from "./contexts/AppContext";
 import { MainToolbar } from "./components/toolbar/MainToolbar";
-import { PDFToolsToolbar } from "./components/toolbar/PDFToolsToolbar";
-import { PDFViewerNavigation } from "./components/viewer/PDFViewerNavigation";
+import { VerticalToolbar } from "./components/toolbar/VerticalToolbar";
+import { ToolbarManager } from "./components/toolbar/ToolbarManager";
+import { VerticalNavigation } from "./components/viewer/VerticalNavigation";
+import SearchBox from "./components/SearchBox";
 import { PDFViewer } from "./components/viewer/PDFViewer";
 import { Notification } from "./components/ui/Notification";
+import { ResizableSidebar } from "./components/ResizableSidebar";
 import Sidebar from "./components/Sidebar";
 import { usePdfDocument } from "./hooks/usePdfDocument";
 import { usePDFOperations } from "./hooks/usePDFOperations";
+import { setCursor } from "./lib/cursorManager";
 
 // Import dialogs (these would be created similar to the other components)
 // For now, keeping minimal structure
@@ -17,10 +21,94 @@ const AppContent: React.FC = () => {
   const { pdf, pageCount } = usePdfDocument(state.file);
   const operations = usePDFOperations();
   const viewerRef = useRef<HTMLDivElement>(null);
+  
+  // Toolbar positioning state
+  const [sidebarWidth, setSidebarWidth] = useState(256); // Track sidebar width
+  const [toolbarPositions, setToolbarPositions] = useState({
+    vertical: { x: 272, y: 120 }, // Position to the right of default thumbnail panel width (256px + 16px margin)
+    navigation: { x: window.innerWidth - 220, y: window.innerHeight - 400 }, // Bottom right corner
+  });
 
-  // Keyboard shortcuts
+  // Update toolbar positions when sidebar width changes
+  useEffect(() => {
+    const baseX = sidebarWidth + 16;
+    setToolbarPositions(prev => ({
+      ...prev,
+      vertical: { x: baseX, y: prev.vertical.y },
+      // Keep navigation toolbar independent of sidebar
+    }));
+  }, [sidebarWidth]);
+  const [showToolbarManager, setShowToolbarManager] = useState(false);
+
+  // Load saved toolbar positions
+  useEffect(() => {
+    const saved = localStorage.getItem('toolbarPositions');
+    if (saved) {
+      try {
+        const positions = JSON.parse(saved);
+        setToolbarPositions(positions);
+      } catch {
+        // Use default positions if parsing fails
+      }
+    }
+  }, []);
+
+  // Save toolbar positions
+  const saveToolbarPositions = useCallback((positions: typeof toolbarPositions) => {
+    setToolbarPositions(positions);
+    localStorage.setItem('toolbarPositions', JSON.stringify(positions));
+  }, []);
+
+  // Handle toolbar preset application
+  const handleApplyPreset = useCallback((preset: any) => {
+    const newPositions = {
+      vertical: preset.toolbars.vertical?.position || { x: 272, y: 120 },
+      navigation: preset.toolbars.navigation?.position || { x: window.innerWidth - 220, y: window.innerHeight - 400 }
+    };
+    saveToolbarPositions(newPositions);
+  }, [saveToolbarPositions]);
+
+  // Handle saving current layout as preset
+  const handleSavePreset = useCallback((name: string) => {
+    dispatch({
+      type: 'SET_NOTIFICATION',
+      payload: `Toolbar preset "${name}" saved successfully`
+    });
+  }, [dispatch]);
+
+  // Page operation handlers
+  const handleDeletePage = useCallback(async (pageIndex: number) => {
+    try {
+      await operations.deletePage(pageIndex);
+    } catch (error) {
+      console.error("Error deleting page:", error);
+    }
+  }, [operations]);
+
+  const handleRotatePage = useCallback(async (pageIndex: number, direction: 'left' | 'right') => {
+    const degrees = direction === 'left' ? -90 : 90;
+    try {
+      await operations.rotatePages([pageIndex], degrees);
+    } catch (error) {
+      console.error("Error rotating page:", error);
+    }
+  }, [operations]);
+
+  // Update cursor when current tool changes
+  useEffect(() => {
+    setCursor(state.currentTool);
+  }, [state.currentTool]);
+
+  // Keyboard shortcuts and wheel zoom handling
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + Alt + T to open toolbar manager
+      if ((e.ctrlKey || e.metaKey) && e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        setShowToolbarManager(true);
+        return;
+      }
+      
       if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
           case 'o':
@@ -41,11 +129,73 @@ const AppContent: React.FC = () => {
             break;
         }
       }
+      
+      // Tool shortcuts when no input is focused
+      if (document.activeElement?.tagName !== 'INPUT' && 
+          document.activeElement?.tagName !== 'TEXTAREA') {
+        switch (e.key.toLowerCase()) {
+          case 'v':
+            e.preventDefault();
+            dispatch({ type: 'SET_CURRENT_TOOL', payload: 'select' });
+            break;
+          case 'h':
+            e.preventDefault();
+            dispatch({ type: 'SET_CURRENT_TOOL', payload: 'hand' });
+            break;
+          case 't':
+            if (!(e.ctrlKey || e.metaKey)) {
+              e.preventDefault();
+              dispatch({ type: 'SET_CURRENT_TOOL', payload: 'text' });
+            }
+            break;
+          case 'n':
+            e.preventDefault();
+            dispatch({ type: 'SET_CURRENT_TOOL', payload: 'highlight' });
+            break;
+          case 'r':
+            e.preventDefault();
+            dispatch({ type: 'SET_CURRENT_TOOL', payload: 'rectangle' });
+            break;
+          case 'c':
+            e.preventDefault();
+            dispatch({ type: 'SET_CURRENT_TOOL', payload: 'circle' });
+            break;
+          case 'a':
+            e.preventDefault();
+            dispatch({ type: 'SET_CURRENT_TOOL', payload: 'arrow' });
+            break;
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [operations]);
+  }, [operations, dispatch]);
+
+  // Prevent browser zoom and handle PDF zoom with Ctrl+wheel
+  useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      // Check if Ctrl (or Cmd on Mac) is pressed
+      if (e.ctrlKey || e.metaKey) {
+        // Check if we're inside the PDF viewer area
+        const target = e.target as Element;
+        const pdfViewerArea = target?.closest('.pdf-viewer-container, .pdf-viewer, canvas, .pdf-container');
+        
+        // Only prevent default and zoom PDF if we're in the PDF area and have a PDF loaded
+        if (pdfViewerArea && pageCount > 0) {
+          e.preventDefault(); // Prevent browser zoom
+          
+          const zoomDelta = e.deltaY > 0 ? -0.1 : 0.1; // Reverse delta for natural zoom direction
+          const newZoom = Math.max(0.1, Math.min(5.0, state.zoom + zoomDelta));
+          dispatch({ type: 'SET_ZOOM', payload: newZoom });
+        }
+      }
+    };
+
+    // Add wheel event listener to document to catch all wheel events
+    document.addEventListener('wheel', handleWheel, { passive: false });
+    return () => document.removeEventListener('wheel', handleWheel);
+  }, [state.zoom, pageCount, dispatch]);
 
   // Update viewer dimensions on resize
   useEffect(() => {
@@ -109,6 +259,66 @@ const AppContent: React.FC = () => {
     dispatch({ type: 'SET_PAGE_INDEX', payload: index });
   };
 
+  // Auto-fit functions for navigation
+  const handleFitToPage = useCallback(async () => {
+    if (!pdf) return;
+    
+    // Get the main viewer container
+    const viewerContainer = document.querySelector('.pdf-viewer-container') as HTMLElement;
+    if (!viewerContainer) return;
+    
+    try {
+      const page = await pdf.getPage(state.pageIndex + 1);
+      const naturalViewport = page.getViewport({ scale: 1.0 });
+      
+      const containerRect = viewerContainer.getBoundingClientRect();
+      
+      // Account for padding and margins
+      const availableWidth = containerRect.width - 64;
+      const availableHeight = containerRect.height - 64;
+      
+      // Calculate zoom levels
+      const fitToWidthZoom = availableWidth / naturalViewport.width;
+      const fitToHeightZoom = availableHeight / naturalViewport.height;
+      
+      // Use smaller zoom to ensure full page fits
+      const optimalZoom = Math.min(fitToWidthZoom, fitToHeightZoom);
+      const finalZoom = Math.max(0.25, Math.min(3.0, optimalZoom));
+      
+      dispatch({ type: 'SET_ZOOM', payload: finalZoom });
+      page.cleanup();
+    } catch (error) {
+      console.error('Error calculating fit to page:', error);
+    }
+  }, [pdf, state.pageIndex, dispatch]);
+
+  const handleFitToWidth = useCallback(async () => {
+    if (!pdf) return;
+    
+    // Get the main viewer container
+    const viewerContainer = document.querySelector('.pdf-viewer-container') as HTMLElement;
+    if (!viewerContainer) return;
+    
+    try {
+      const page = await pdf.getPage(state.pageIndex + 1);
+      const naturalViewport = page.getViewport({ scale: 1.0 });
+      
+      const containerRect = viewerContainer.getBoundingClientRect();
+      
+      // Account for padding and margins
+      const availableWidth = containerRect.width - 64;
+      
+      // Calculate zoom level for width
+      const fitToWidthZoom = availableWidth / naturalViewport.width;
+      const finalZoom = Math.max(0.25, Math.min(3.0, fitToWidthZoom));
+      
+      dispatch({ type: 'SET_ZOOM', payload: finalZoom });
+      page.cleanup();
+    } catch (error) {
+      console.error('Error calculating fit to width:', error);
+    }
+  }, [pdf, state.pageIndex, dispatch]);
+
   return (
     <div className="h-screen flex flex-col relative overflow-hidden">
       {/* Animated background */}
@@ -122,7 +332,7 @@ const AppContent: React.FC = () => {
         <div className="absolute -bottom-8 left-40 w-32 h-32 bg-pink-200 rounded-full mix-blend-multiply filter blur-xl opacity-70 animate-blob animation-delay-4000"></div>
       </div>
 
-      {/* Main Toolbar */}
+      {/* Main Toolbar - Always visible */}
       <MainToolbar
         onOpen={operations.openFiles}
         onSave={operations.saveFile}
@@ -134,23 +344,27 @@ const AppContent: React.FC = () => {
         fileName={state.file?.name}
       />
 
-      {/* PDF Tools Toolbar */}
-      <PDFToolsToolbar
-        onAddText={() => dispatch({ type: 'SET_TEXT_DIALOG', payload: true })}
-        onHighlight={() => dispatch({ type: 'SET_HIGHLIGHT_DIALOG', payload: true })}
-        onSign={() => dispatch({ type: 'SET_SIGNATURE_DIALOG', payload: true })}
-        onRotateLeft={handleRotateLeft}
-        onRotateRight={handleRotateRight}
-        onExtract={() => dispatch({ type: 'SET_EXTRACT_DIALOG', payload: true })}
-        onOCR={() => operations.performOCR()}
-        onRedact={() => dispatch({ type: 'SET_REDACT_DIALOG', payload: true })}
-        onRefresh={operations.refreshDocument}
-        selectedPagesCount={state.selectedPages.size}
-      />
+      {/* Vertical Toolbar - Adobe-style positioned next to thumbnails */}
+      {state.file && (
+        <VerticalToolbar
+          position={toolbarPositions.vertical}
+          onMove={(position) => saveToolbarPositions({ ...toolbarPositions, vertical: position })}
+          isMoveable={true}
+        />
+      )}
 
-      {/* PDF Viewer Navigation */}
+      {/* Search Bar */}
       {pageCount > 0 && (
-        <PDFViewerNavigation
+        <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-2">
+          <div className="flex justify-end">
+            <SearchBox onSearch={handleSearch} />
+          </div>
+        </div>
+      )}
+
+      {/* Vertical Navigation */}
+      {pageCount > 0 && (
+        <VerticalNavigation
           pageIndex={state.pageIndex}
           pageCount={pageCount}
           zoom={state.zoom}
@@ -158,15 +372,19 @@ const AppContent: React.FC = () => {
           onPageChange={(index) => dispatch({ type: 'SET_PAGE_INDEX', payload: index })}
           onZoomChange={(zoom) => dispatch({ type: 'SET_ZOOM', payload: zoom })}
           onScrollModeChange={(mode) => dispatch({ type: 'SET_SCROLL_MODE', payload: mode })}
-          onSearch={handleSearch}
+          onFitToPage={handleFitToPage}
+          onFitToWidth={handleFitToWidth}
           scrollToPage={scrollToPage}
+          position={toolbarPositions.navigation}
+          onMove={(position) => saveToolbarPositions({ ...toolbarPositions, navigation: position })}
+          isMoveable={true}
         />
       )}
 
       {/* Main Content Area */}
       <div className="flex flex-1 min-h-0 relative z-10">
         {/* Left Panel - Page Thumbnails */}
-        <div className="w-64 bg-white/80 backdrop-blur-xl border-r border-white/30 flex flex-col shadow-lg">
+        <ResizableSidebar onWidthChange={setSidebarWidth}>
           <div className="p-4 border-b border-white/30 bg-white/60 backdrop-blur-lg">
             <h3 className="text-sm font-bold text-gray-800 flex items-center space-x-2">
               <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -186,7 +404,9 @@ const AppContent: React.FC = () => {
                 pageCount={pageCount} 
                 current={state.pageIndex} 
                 onJump={(index) => dispatch({ type: 'SET_PAGE_INDEX', payload: index })} 
-                pdf={pdf} 
+                pdf={pdf}
+                onDeletePage={handleDeletePage}
+                onRotatePage={handleRotatePage}
               />
             ) : (
               <div className="p-6 text-center text-gray-500">
@@ -198,13 +418,13 @@ const AppContent: React.FC = () => {
               </div>
             )}
           </div>
-        </div>
+        </ResizableSidebar>
 
         {/* Main PDF Viewer */}
         <div className="flex-1 flex flex-col">
           <div 
             ref={viewerRef}
-            className="flex-1 overflow-auto relative"
+            className="flex-1 overflow-auto relative pdf-viewer-container"
             style={{ 
               scrollBehavior: 'smooth',
               scrollbarWidth: 'thin',
@@ -560,6 +780,21 @@ const AppContent: React.FC = () => {
                     </div>
                     <input type="checkbox" className="rounded" />
                   </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Manage Toolbars</label>
+                      <p className="text-xs text-gray-500">Customize toolbar layouts and positions</p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowToolbarManager(true);
+                        dispatch({ type: 'SET_SETTINGS_DIALOG', payload: false });
+                      }}
+                      className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
+                    >
+                      Open
+                    </button>
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
                     <select className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
@@ -633,8 +868,8 @@ const AppContent: React.FC = () => {
       {/* Help Dialog */}
       {state.showHelpDialog && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-4xl border border-white/20 max-h-[90vh] overflow-auto">
-            <div className="flex items-center justify-between mb-6">
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl w-full max-w-4xl border border-white/20 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-8 pb-6 flex-shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
                   <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -653,7 +888,8 @@ const AppContent: React.FC = () => {
               </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="overflow-y-auto flex-1 px-8 pb-8 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               {/* Quick Start */}
               <div className="space-y-6">
                 <div className="bg-blue-50 rounded-xl p-6">
@@ -670,11 +906,15 @@ const AppContent: React.FC = () => {
                     </li>
                     <li className="flex items-start">
                       <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5">2</span>
-                      Use the toolbar to edit, annotate, or transform
+                      Switch between <strong>File</strong> and <strong>Tools</strong> toolbars using the toggle buttons
                     </li>
                     <li className="flex items-start">
                       <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5">3</span>
-                      Save your changes using <strong>Save</strong> or <strong>Save As</strong>
+                      Use the Tools toolbar to edit, annotate, or transform your PDF
+                    </li>
+                    <li className="flex items-start">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-0.5">4</span>
+                      Save your changes using <strong>Save</strong> or <strong>Save As</strong> in the File toolbar
                     </li>
                   </ul>
                 </div>
@@ -704,6 +944,26 @@ const AppContent: React.FC = () => {
                       <span>Print</span>
                       <kbd className="px-2 py-1 bg-purple-100 rounded text-xs">Ctrl+P</kbd>
                     </div>
+                    <div className="flex justify-between">
+                      <span>Zoom in/out</span>
+                      <kbd className="px-2 py-1 bg-purple-100 rounded text-xs">Ctrl+Scroll</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Next page</span>
+                      <kbd className="px-2 py-1 bg-purple-100 rounded text-xs">Space / ↓</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Previous page</span>
+                      <kbd className="px-2 py-1 bg-purple-100 rounded text-xs">↑</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Switch to File toolbar</span>
+                      <kbd className="px-2 py-1 bg-purple-100 rounded text-xs">Alt+1</kbd>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Switch to Tools toolbar</span>
+                      <kbd className="px-2 py-1 bg-purple-100 rounded text-xs">Alt+2</kbd>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -729,17 +989,33 @@ const AppContent: React.FC = () => {
                       </div>
                       <div className="flex items-center">
                         <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                        Draw annotations
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
                         Digital signatures
                       </div>
                       <div className="flex items-center">
                         <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
                         Page rotation
                       </div>
+                      <div className="flex items-center">
+                        <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                        Undo/Redo support
+                      </div>
                     </div>
                     <div className="space-y-2 text-green-700">
                       <div className="flex items-center">
                         <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
                         Extract pages
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                        Zoom with Ctrl+Scroll
+                      </div>
+                      <div className="flex items-center">
+                        <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                        Page/Continuous scroll
                       </div>
                       <div className="flex items-center">
                         <span className="w-2 h-2 bg-green-400 rounded-full mr-2"></span>
@@ -783,9 +1059,10 @@ const AppContent: React.FC = () => {
                   </div>
                 </div>
               </div>
-            </div>
+              </div> {/* End grid */}
+            </div> {/* End scrollable content */}
 
-            <div className="flex justify-center mt-8">
+            <div className="flex justify-center mt-8 px-8 pb-8 flex-shrink-0">
               <button
                 onClick={() => dispatch({ type: 'SET_HELP_DIALOG', payload: false })}
                 className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105"
@@ -796,6 +1073,137 @@ const AppContent: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* File Location Dialog */}
+      {state.showFileLocationDialog && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-2xl border border-white/20">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center">
+                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-gray-800">File Location</h3>
+              </div>
+              <button
+                onClick={() => dispatch({ type: 'SET_FILE_LOCATION_DIALOG', payload: false })}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-6">
+              {/* File Info */}
+              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6">
+                <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  File Information
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex items-start space-x-3">
+                    <span className="text-sm font-medium text-gray-600 w-20 flex-shrink-0">Name:</span>
+                    <span className="text-sm text-gray-800 break-all font-mono bg-white/60 px-2 py-1 rounded">
+                      {state.file?.name || 'No file loaded'}
+                    </span>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <span className="text-sm font-medium text-gray-600 w-20 flex-shrink-0">Path:</span>
+                    <span className="text-sm text-gray-800 break-all font-mono bg-white/60 px-2 py-1 rounded">
+                      {state.file?.path || 'File not saved yet'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    if (state.file?.path) {
+                      navigator.clipboard.writeText(state.file.path);
+                      operations.showNotification("File path copied to clipboard!");
+                    }
+                  }}
+                  disabled={!state.file?.path}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  <span>Copy Path</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!state.file?.path) {
+                      operations.showNotification("No file path available");
+                      return;
+                    }
+
+                    try {
+                      if (window.electronAPI) {
+                        const { showInFolder } = await import('./lib/fileDialogs');
+                        await showInFolder(state.file.path);
+                        operations.showNotification("File location opened in file explorer");
+                        dispatch({ type: 'SET_FILE_LOCATION_DIALOG', payload: false });
+                      } else {
+                        operations.showNotification("Show in folder feature is only available in desktop mode");
+                      }
+                    } catch (error) {
+                      console.error("Error showing file in folder:", error);
+                      operations.showNotification("Error opening file location: " + (error instanceof Error ? error.message : String(error)));
+                    }
+                  }}
+                  disabled={!state.file?.path}
+                  className="flex-1 px-4 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl hover:from-orange-600 hover:to-red-700 transition-all duration-200 font-medium shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center space-x-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                  <span>Open in Explorer</span>
+                </button>
+              </div>
+
+              {!state.file?.path && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    <span className="text-sm text-yellow-800 font-medium">
+                      This file hasn't been saved yet. Save it first to access file location features.
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => dispatch({ type: 'SET_FILE_LOCATION_DIALOG', payload: false })}
+                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toolbar Manager Dialog */}
+      <ToolbarManager
+        isOpen={showToolbarManager}
+        onClose={() => setShowToolbarManager(false)}
+        currentPositions={toolbarPositions}
+        onApplyPreset={handleApplyPreset}
+        onSavePreset={handleSavePreset}
+      />
 
       {/* Flying Notification */}
       {state.notification && (

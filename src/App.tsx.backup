@@ -1475,7 +1475,7 @@ export default function App() {
           {/* Center: Document title */}
           <div className="flex-1 text-center">
             <h1 className="text-lg font-semibold text-gray-800">
-              {file?.name || "PDF Studio"}
+              {file?.name || "PDFusion"}
             </h1>
           </div>
 

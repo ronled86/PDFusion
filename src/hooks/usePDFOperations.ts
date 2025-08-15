@@ -25,6 +25,7 @@ export const usePDFOperations = () => {
         dispatch({ type: 'SET_FILE', payload: fileWithSafeData });
         dispatch({ type: 'SET_BUFFERS', payload: safeBuffer });
         dispatch({ type: 'SET_PAGE_INDEX', payload: 0 });
+        dispatch({ type: 'SET_ZOOM', payload: 0.85 }); // Set initial zoom to fit page
         dispatch({ type: 'SET_FIRST_LOAD', payload: true });
         showNotification("File loaded successfully");
       } else if (arr && arr.length > 1) {
@@ -109,10 +110,21 @@ export const usePDFOperations = () => {
       return;
     }
 
+    // Show the file location dialog instead of immediately opening folder
+    dispatch({ type: 'SET_FILE_LOCATION_DIALOG', payload: true });
+  }, [state.file, dispatch]);
+
+  const openFileInFolder = useCallback(async () => {
+    if (!state.file?.path) {
+      showNotification("No file path available");
+      return;
+    }
+
     try {
       if (window.electronAPI) {
         await showInFolder(state.file.path);
         showNotification("File location opened in file explorer");
+        dispatch({ type: 'SET_FILE_LOCATION_DIALOG', payload: false });
       } else {
         showNotification("Show in folder feature is only available in desktop mode");
       }
@@ -120,7 +132,7 @@ export const usePDFOperations = () => {
       console.error("Error showing file in folder:", error);
       showNotification("Error opening file location: " + (error instanceof Error ? error.message : String(error)));
     }
-  }, [state.file, showNotification]);
+  }, [state.file, showNotification, dispatch]);
 
   const rotatePage = useCallback(async (degrees: number = 90) => {
     try {
@@ -169,6 +181,35 @@ export const usePDFOperations = () => {
       }
     }
   }, [state.buffers, state.file, dispatch, showNotification]);
+
+  const deletePage = useCallback(async (pageIndex: number) => {
+    try {
+      const result = await PDFOperationsService.deletePage(
+        state.buffers, 
+        state.file, 
+        pageIndex
+      );
+      
+      dispatch({ type: 'SET_BUFFERS', payload: result });
+      dispatch({ type: 'SET_FILE', payload: state.file ? { ...state.file, data: result } : undefined });
+      
+      // Adjust current page if necessary
+      if (state.pageIndex >= pageIndex && state.pageIndex > 0) {
+        dispatch({ type: 'SET_PAGE_INDEX', payload: state.pageIndex - 1 });
+      }
+      
+      showNotification(`Page ${pageIndex + 1} deleted successfully`);
+    } catch (error) {
+      console.error("Error deleting page:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes("detached") || errorMessage.includes("reload")) {
+        showNotification("Buffer error - please reload the document and try again");
+      } else {
+        showNotification("Error deleting page: " + errorMessage);
+      }
+    }
+  }, [state.buffers, state.file, state.pageIndex, dispatch, showNotification]);
 
   const addText = useCallback(async (text: string) => {
     try {
@@ -325,6 +366,7 @@ export const usePDFOperations = () => {
     showFileInFolder,
     rotatePage,
     rotatePages,
+    deletePage,
     addText,
     addHighlight,
     addSignature,

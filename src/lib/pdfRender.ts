@@ -8,6 +8,49 @@ export const loadPdf = async (data: Uint8Array) => {
   return doc;
 };
 
+export const createRenderTask = async (
+  pdf: pdfjs.PDFDocumentProxy,
+  pageIndex: number,
+  scale: number,
+  canvas: HTMLCanvasElement
+) => {
+  if (!pdf) {
+    throw new Error("PDF document is not loaded");
+  }
+  
+  const pageCount = pdf.numPages;
+  if (pageIndex < 0 || pageIndex >= pageCount) {
+    throw new Error(`Invalid page index ${pageIndex}. Document has ${pageCount} pages (0-${pageCount - 1})`);
+  }
+  
+  const page = await pdf.getPage(pageIndex + 1); // PDF.js uses 1-based indexing
+  const viewport = page.getViewport({ scale });
+  const ctx = canvas.getContext("2d")!;
+  
+  if (!ctx) {
+    throw new Error("Could not get canvas 2D context");
+  }
+  
+  // Set canvas dimensions
+  canvas.width = Math.ceil(viewport.width);
+  canvas.height = Math.ceil(viewport.height);
+  
+  // Clear the canvas before rendering
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  const renderCtx = { canvasContext: ctx, viewport };
+  const renderTask = page.render(renderCtx);
+  
+  return {
+    renderTask,
+    page,
+    viewport,
+    dimensions: { width: viewport.width, height: viewport.height }
+  };
+};
+
 export const renderPageToCanvas = async (
   pdf: pdfjs.PDFDocumentProxy,
   pageIndex: number,
@@ -35,13 +78,23 @@ export const renderPageToCanvas = async (
     canvas.width = Math.ceil(viewport.width);
     canvas.height = Math.ceil(viewport.height);
     
+    // Clear the canvas before rendering
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
     const renderCtx = { canvasContext: ctx, viewport };
-    await (page.render as any)(renderCtx).promise;
+    const renderTask = page.render(renderCtx);
+    
+    await renderTask.promise;
     
     // Clean up the page to free memory
     page.cleanup();
     
-    return { width: viewport.width, height: viewport.height };
+    return { 
+      width: viewport.width, 
+      height: viewport.height
+    };
   } catch (error) {
     console.error(`Error rendering page ${pageIndex}:`, error);
     throw error;

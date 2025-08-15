@@ -20,6 +20,20 @@ export interface AppState {
   selectedPages: Set<number>;
   selectionMode: boolean;
   
+  // Drawing/Annotation state
+  currentTool: 'hand' | 'select' | 'highlight' | 'draw' | 'text' | 'rectangle' | 'circle' | 'arrow';
+  highlightColor: string;
+  drawColor: string;
+  drawWidth: number;
+  
+  // Toolbar state
+  activeToolbar: 'main' | 'pdf';
+  activePDFToolbar: 'tools1' | 'tools2';
+  
+  // Undo/Redo state
+  undoStack: Uint8Array[];
+  redoStack: Uint8Array[];
+  
   // Dialog states
   showTextDialog: boolean;
   showHighlightDialog: boolean;
@@ -29,6 +43,7 @@ export interface AppState {
   showExtractDialog: boolean;
   showSettingsDialog: boolean;
   showHelpDialog: boolean;
+  showFileLocationDialog: boolean;
   
   // Input states
   textInput: string;
@@ -64,6 +79,17 @@ export type AppAction =
   | { type: 'SET_EXTRACT_DIALOG'; payload: boolean }
   | { type: 'SET_SETTINGS_DIALOG'; payload: boolean }
   | { type: 'SET_HELP_DIALOG'; payload: boolean }
+  | { type: 'SET_FILE_LOCATION_DIALOG'; payload: boolean }
+  | { type: 'SET_CURRENT_TOOL'; payload: 'hand' | 'select' | 'highlight' | 'draw' | 'text' | 'rectangle' | 'circle' | 'arrow' }
+  | { type: 'SET_HIGHLIGHT_COLOR'; payload: string }
+  | { type: 'SET_DRAW_COLOR'; payload: string }
+  | { type: 'SET_DRAW_WIDTH'; payload: number }
+  | { type: 'PUSH_UNDO'; payload: Uint8Array }
+  | { type: 'UNDO' }
+  | { type: 'REDO' }
+  | { type: 'CLEAR_UNDO_STACK' }
+  | { type: 'SET_ACTIVE_TOOLBAR'; payload: 'main' | 'pdf' }
+  | { type: 'SET_ACTIVE_PDF_TOOLBAR'; payload: 'tools1' | 'tools2' }
   | { type: 'SET_TEXT_INPUT'; payload: string }
   | { type: 'SET_HIGHLIGHT_INPUT'; payload: string }
   | { type: 'SET_REDACT_INPUT'; payload: string }
@@ -84,6 +110,14 @@ const initialState: AppState = {
   scrollMode: 'page',
   selectedPages: new Set<number>(),
   selectionMode: false,
+  currentTool: 'hand',
+  highlightColor: '#ffff00',
+  drawColor: '#000000',
+  drawWidth: 2,
+  activeToolbar: 'main',
+  activePDFToolbar: 'tools1',
+  undoStack: [],
+  redoStack: [],
   showTextDialog: false,
   showHighlightDialog: false,
   showRedactDialog: false,
@@ -92,6 +126,7 @@ const initialState: AppState = {
   showExtractDialog: false,
   showSettingsDialog: false,
   showHelpDialog: false,
+  showFileLocationDialog: false,
   textInput: "",
   highlightInput: "",
   redactInput: "",
@@ -157,6 +192,46 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, showSettingsDialog: action.payload };
     case 'SET_HELP_DIALOG':
       return { ...state, showHelpDialog: action.payload };
+    case 'SET_FILE_LOCATION_DIALOG':
+      return { ...state, showFileLocationDialog: action.payload };
+    case 'SET_CURRENT_TOOL':
+      return { ...state, currentTool: action.payload };
+    case 'SET_HIGHLIGHT_COLOR':
+      return { ...state, highlightColor: action.payload };
+    case 'SET_DRAW_COLOR':
+      return { ...state, drawColor: action.payload };
+    case 'SET_DRAW_WIDTH':
+      return { ...state, drawWidth: action.payload };
+    case 'PUSH_UNDO':
+      return { 
+        ...state, 
+        undoStack: [...state.undoStack.slice(-9), action.payload], // Keep last 10 states
+        redoStack: [] // Clear redo stack when new action is performed
+      };
+    case 'UNDO':
+      if (state.undoStack.length === 0) return state;
+      const lastState = state.undoStack[state.undoStack.length - 1];
+      return {
+        ...state,
+        buffers: lastState,
+        undoStack: state.undoStack.slice(0, -1),
+        redoStack: state.buffers ? [...state.redoStack, state.buffers] : state.redoStack
+      };
+    case 'REDO':
+      if (state.redoStack.length === 0) return state;
+      const nextState = state.redoStack[state.redoStack.length - 1];
+      return {
+        ...state,
+        buffers: nextState,
+        redoStack: state.redoStack.slice(0, -1),
+        undoStack: state.buffers ? [...state.undoStack, state.buffers] : state.undoStack
+      };
+    case 'CLEAR_UNDO_STACK':
+      return { ...state, undoStack: [], redoStack: [] };
+    case 'SET_ACTIVE_TOOLBAR':
+      return { ...state, activeToolbar: action.payload };
+    case 'SET_ACTIVE_PDF_TOOLBAR':
+      return { ...state, activePDFToolbar: action.payload };
     case 'SET_TEXT_INPUT':
       return { ...state, textInput: action.payload };
     case 'SET_HIGHLIGHT_INPUT':
@@ -180,6 +255,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         showExtractDialog: false,
         showSettingsDialog: false,
         showHelpDialog: false,
+        showFileLocationDialog: false,
         textInput: "",
         highlightInput: "",
         redactInput: "",

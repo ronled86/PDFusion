@@ -1,6 +1,6 @@
 {
-  "name": "PDF Studio",
-  "short_name": "PDFStudio",
+  "name": "PDFusion",
+  "short_name": "PDFusion",
   "description": "Professional PDF editing and manipulation tool",
   "version": "0.2.0",
   "manifest_version": 3,

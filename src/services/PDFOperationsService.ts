@@ -6,7 +6,8 @@ import {
   insertBlankPage, 
   mergePdfs, 
   rotatePage,
-  rotatePages 
+  rotatePages,
+  deletePage
 } from '../lib/pdfWrite';
 import { extractTextRects, renderPageToCanvas } from '../lib/pdfRender';
 import { placeSignatureImage } from '../lib/signature';
@@ -462,6 +463,76 @@ export class PDFOperationsService {
       return extractedText;
     } catch (error) {
       console.error("Error performing OCR:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a page from the PDF
+   */
+  static async deletePage(
+    buffers: Uint8Array | null,
+    file: OpenedFile | undefined,
+    pageIndex: number
+  ): Promise<Uint8Array> {
+    console.log("Delete page operation started, pageIndex:", pageIndex, "buffers:", buffers?.length, "bytes");
+    
+    if (!buffers && !file?.data) {
+      throw new Error("No document loaded");
+    }
+
+    try {
+      console.log(`Deleting page ${pageIndex + 1}`);
+      
+      // Try multiple buffer sources in order of preference
+      let workingData: Uint8Array | null = null;
+      
+      // First try: current buffers
+      if (buffers) {
+        try {
+          buffers.slice(0, 1); // Test accessibility
+          workingData = new Uint8Array(buffers);
+          console.log("Using current buffers for deletion");
+        } catch (e) {
+          console.warn("Current buffers detached, trying alternatives");
+        }
+      }
+      
+      // Second try: cached buffer (access through getWorkingBuffer)
+      if (!workingData) {
+        try {
+          workingData = BufferService.getWorkingBuffer(buffers, file);
+          if (workingData) {
+            console.log("Using working buffer for deletion");
+          }
+        } catch (e) {
+          console.warn("Working buffer not available");
+        }
+      }
+      
+      // Third try: file data
+      if (!workingData && file?.data) {
+        try {
+          workingData = new Uint8Array(file.data);
+          console.log("Using file data for deletion");
+        } catch (e) {
+          console.warn("File data not accessible");
+        }
+      }
+      
+      if (!workingData) {
+        throw new Error("No valid buffer available for page deletion");
+      }
+
+      const result = await deletePage(workingData, pageIndex);
+      
+      // Update cached buffer with the new result
+      BufferService.updateCachedBuffer(result);
+      
+      console.log("Page deletion completed successfully");
+      return result;
+    } catch (error) {
+      console.error("Error in deletePage operation:", error);
       throw error;
     }
   }

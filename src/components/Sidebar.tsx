@@ -6,6 +6,8 @@ export default function Sidebar(props: {
   current: number;
   onJump: (i: number) => void;
   pdf?: any;
+  onDeletePage?: (pageIndex: number) => void;
+  onRotatePage?: (pageIndex: number, direction: 'left' | 'right') => void;
 }) {
   return (
     <div className="flex flex-col h-full">
@@ -15,6 +17,8 @@ export default function Sidebar(props: {
           current={props.current} 
           onJump={props.onJump}
           pdf={props.pdf}
+          onDeletePage={props.onDeletePage}
+          onRotatePage={props.onRotatePage}
         />
       </div>
     </div>
