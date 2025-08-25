@@ -4,6 +4,7 @@ import { useAppContext } from '../../contexts/AppContext';
 import { useContentAnalysis } from '../../hooks/useContentAnalysis';
 import { DrawingOverlay } from './DrawingOverlay';
 import { TextSelectionOverlay } from './TextSelectionOverlay';
+import { SearchHighlightOverlay } from './SearchHighlightOverlay';
 import { TextLayer } from './TextLayer';
 import { ContinuousPDFViewer } from './ContinuousPDFViewer';
 import * as pdfjs from 'pdfjs-dist';
@@ -393,6 +394,38 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
               getTextSelectionBounds={getTextSelectionBounds}
               isTextAtPosition={isTextAtPosition}
               getTextAtPosition={getTextAtPosition}
+            />
+          </div>
+        )}
+
+        {/* Search Highlight Overlay */}
+        {dimensions.width > 0 && state.searchResults.length > 0 && (
+          <div className="absolute top-0 left-0 z-15">
+            <SearchHighlightOverlay
+              highlights={
+                state.searchResults
+                  .filter(result => result.pageIndex === pageIndex)
+                  .flatMap(result => result.highlights)
+              }
+              pageScale={zoom}
+              pageWidth={dimensions.width / zoom}
+              pageHeight={dimensions.height / zoom}
+              isCurrentPage={
+                state.searchResults.length > 0 && 
+                state.currentSearchResultIndex >= 0 &&
+                state.searchResults[state.currentSearchResultIndex]?.pageIndex === pageIndex
+              }
+              currentHitIndexOnThisPage={(() => {
+                const hits = state.flattenedSearchHits;
+                const current = state.currentSearchHitGlobalIndex;
+                if (current < 0 || current >= hits.length) return undefined;
+                const currentHit = hits[current];
+                if (!currentHit || currentHit.pageIndex !== pageIndex) return undefined;
+                // Find the index of current rect among this page's highlights
+                const pageResult = state.searchResults.find(r => r.pageIndex === pageIndex);
+                if (!pageResult) return undefined;
+                return currentHit.rectIndex;
+              })()}
             />
           </div>
         )}

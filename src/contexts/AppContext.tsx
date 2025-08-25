@@ -54,6 +54,17 @@ export interface AppState {
   
   // Notification state
   notification: string | null;
+  
+  // Search state
+  searchQuery: string;
+  searchResults: Array<{
+    pageIndex: number;
+  highlights: Array<{ x: number; y: number; w: number; h: number; text?: string; start?: number; end?: number }>;
+  }>;
+  currentSearchResultIndex: number;
+  currentSearchHitGlobalIndex: number; // 0-based across all hits
+  flattenedSearchHits: Array<{ pageIndex: number; rectIndex: number; rect: { x: number; y: number; w: number; h: number; text?: string; start?: number; end?: number } }>;
+  isSearching: boolean;
 }
 
 // Action Types
@@ -96,6 +107,13 @@ export type AppAction =
   | { type: 'SET_MERGE_FILES'; payload: OpenedFile[] }
   | { type: 'SET_MERGE_POSITION'; payload: 'before' | 'after' | 'replace' }
   | { type: 'SET_NOTIFICATION'; payload: string | null }
+  | { type: 'SET_SEARCH_QUERY'; payload: string }
+  | { type: 'SET_SEARCH_RESULTS'; payload: Array<{ pageIndex: number; highlights: Array<{ x: number; y: number; w: number; h: number; text?: string; start?: number; end?: number }> }> }
+  | { type: 'SET_CURRENT_SEARCH_RESULT_INDEX'; payload: number }
+  | { type: 'SET_CURRENT_SEARCH_HIT_INDEX'; payload: number }
+  | { type: 'SET_FLATTENED_SEARCH_HITS'; payload: Array<{ pageIndex: number; rectIndex: number; rect: { x: number; y: number; w: number; h: number; text?: string; start?: number; end?: number } }> }
+  | { type: 'SET_IS_SEARCHING'; payload: boolean }
+  | { type: 'CLEAR_SEARCH' }
   | { type: 'RESET_DIALOGS' };
 
 // Initial State
@@ -133,6 +151,12 @@ const initialState: AppState = {
   mergeFiles: [],
   mergePosition: 'after',
   notification: null,
+  searchQuery: '',
+  searchResults: [],
+  currentSearchResultIndex: -1,
+  currentSearchHitGlobalIndex: -1,
+  flattenedSearchHits: [],
+  isSearching: false,
 };
 
 // Reducer
@@ -244,6 +268,28 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, mergePosition: action.payload };
     case 'SET_NOTIFICATION':
       return { ...state, notification: action.payload };
+    case 'SET_SEARCH_QUERY':
+      return { ...state, searchQuery: action.payload };
+    case 'SET_SEARCH_RESULTS':
+      return { ...state, searchResults: action.payload };
+    case 'SET_CURRENT_SEARCH_RESULT_INDEX':
+      return { ...state, currentSearchResultIndex: action.payload };
+    case 'SET_CURRENT_SEARCH_HIT_INDEX':
+      return { ...state, currentSearchHitGlobalIndex: action.payload };
+    case 'SET_FLATTENED_SEARCH_HITS':
+      return { ...state, flattenedSearchHits: action.payload };
+    case 'SET_IS_SEARCHING':
+      return { ...state, isSearching: action.payload };
+    case 'CLEAR_SEARCH':
+      return { 
+        ...state, 
+        searchQuery: '', 
+        searchResults: [], 
+        currentSearchResultIndex: -1, 
+        currentSearchHitGlobalIndex: -1,
+        flattenedSearchHits: [],
+        isSearching: false 
+      };
     case 'RESET_DIALOGS':
       return {
         ...state,

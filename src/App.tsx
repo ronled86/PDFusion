@@ -5,6 +5,7 @@ import { VerticalToolbar } from "./components/toolbar/VerticalToolbar";
 import { ToolbarManager } from "./components/toolbar/ToolbarManager";
 import { VerticalNavigation } from "./components/viewer/VerticalNavigation";
 import SearchBox from "./components/SearchBox";
+import { useSearch } from "./hooks/useSearch";
 import { PDFViewer } from "./components/viewer/PDFViewer";
 import { Notification } from "./components/ui/Notification";
 import { ResizableSidebar } from "./components/ResizableSidebar";
@@ -20,6 +21,7 @@ const AppContent: React.FC = () => {
   const { state, dispatch } = useAppContext();
   const { pdf, pageCount } = usePdfDocument(state.file);
   const operations = usePDFOperations();
+  const search = useSearch();
   const viewerRef = useRef<HTMLDivElement>(null);
   
   // Toolbar positioning state
@@ -127,12 +129,40 @@ const AppContent: React.FC = () => {
             e.preventDefault();
             operations.printFile();
             break;
+          case 'f':
+            e.preventDefault();
+            // Focus search box
+            const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement;
+            if (searchInput) {
+              searchInput.focus();
+              searchInput.select();
+            }
+            break;
         }
       }
       
       // Tool shortcuts when no input is focused
       if (document.activeElement?.tagName !== 'INPUT' && 
           document.activeElement?.tagName !== 'TEXTAREA') {
+        
+        // Search navigation shortcuts
+        if (e.key === 'F3') {
+          e.preventDefault();
+          if (e.shiftKey) {
+            search.goToPrevResult();
+          } else {
+            search.goToNextResult();
+          }
+          return;
+        }
+        
+        // Escape to clear search
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          search.clearSearch();
+          return;
+        }
+        
         switch (e.key.toLowerCase()) {
           case 'v':
             e.preventDefault();
@@ -215,8 +245,7 @@ const AppContent: React.FC = () => {
   }, [dispatch]);
 
   const handleSearch = (searchText: string) => {
-    // TODO: Implement PDF text search
-    console.log("Searching for:", searchText);
+    search.searchInDocument(searchText);
   };
 
   const handleRotateLeft = () => {
@@ -357,7 +386,16 @@ const AppContent: React.FC = () => {
       {pageCount > 0 && (
         <div className="bg-white border-b border-gray-200 shadow-sm px-4 py-2">
           <div className="flex justify-end">
-            <SearchBox onSearch={handleSearch} />
+            <SearchBox 
+              onSearch={handleSearch}
+              isSearching={search.isSearching}
+              totalResults={search.totalResults}
+              currentResultIndex={search.currentSearchResultIndex}
+              onNext={search.goToNextResult}
+              onPrev={search.goToPrevResult}
+              onClear={search.clearSearch}
+              query={search.searchQuery}
+            />
           </div>
         </div>
       )}

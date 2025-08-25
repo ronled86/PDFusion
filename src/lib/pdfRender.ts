@@ -118,24 +118,45 @@ export const extractTextRects = async (pdf: pdfjs.PDFDocumentProxy, pageIndex: n
   try {
     const page = await pdf.getPage(pageIndex + 1); // PDF.js uses 1-based indexing
     const content = await page.getTextContent();
+    const viewport = page.getViewport({ scale: 1.0 });
+    const pageHeight = viewport.height;
     const norm = (s: string) => s.toLowerCase();
-    const hits: { x: number; y: number; w: number; h: number }[] = [];
-    
+    type Hit = { x: number; y: number; w: number; h: number; text?: string; start?: number; end?: number };
+    const hits: Hit[] = [];
+
     for (const item of content.items as any[]) {
       if (!item.str) continue;
-      const s = norm(item.str);
-      if (s.includes(norm(query))) {
-        const [x, y, x2, y2] = item.transform
-          ? [item.transform[4], item.transform[5] - item.height, item.transform[4] + item.width, item.transform[5]]
-          : [0, 0, item.width, item.height];
-        hits.push({ x, y, w: x2 - x, h: y2 - y });
+      const full = String(item.str);
+      const s = norm(full);
+      const q = norm(query);
+      if (!s.includes(q)) continue;
+
+      // PDF.js text coordinates are in a bottom-left origin space.
+      // Convert to top-left origin space matching our overlays.
+      const hasTransform = Array.isArray(item.transform) && item.transform.length >= 6;
+      const xLeft = hasTransform ? item.transform[4] : 0;
+      const yTop = hasTransform ? (pageHeight - item.transform[5]) : 0;
+      const wTotal = item.width ?? Math.abs(hasTransform ? item.transform[0] : 0);
+      const h = item.height ?? Math.abs(hasTransform ? item.transform[3] : 0);
+
+      // Support multiple matches within the same item by proportional width approximation
+      let fromIndex = 0;
+      while (true) {
+        const idx = s.indexOf(q, fromIndex);
+        if (idx === -1) break;
+        const startRatio = full.length > 0 ? idx / full.length : 0;
+        const endRatio = full.length > 0 ? (idx + q.length) / full.length : 0;
+        const x = xLeft + wTotal * startRatio;
+        const w = Math.max(1, wTotal * (endRatio - startRatio));
+        hits.push({ x, y: yTop, w, h, text: full, start: idx, end: idx + q.length });
+        fromIndex = idx + q.length;
       }
     }
-    
+
     // Clean up the page to free memory
     page.cleanup();
-    
-    return hits;
+
+  return hits;
   } catch (error) {
     console.error(`Error extracting text from page ${pageIndex}:`, error);
     throw error;

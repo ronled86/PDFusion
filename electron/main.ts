@@ -143,7 +143,8 @@ const createWindow = async () => {
         logToFile(`❌ Failed to execute debug script: ${err.message}`);
       });
       
-      win.webContents.openDevTools({ mode: "detach" });
+      // Developer tools can be opened manually with F12 or menu
+      // win.webContents.openDevTools({ mode: "detach" });
     } else {
       logToFile("Loading production index.html");
       await win.loadFile(path.join(__dirname, "../dist/index.html"));

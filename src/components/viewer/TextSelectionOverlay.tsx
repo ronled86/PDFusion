@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useAppContext } from '../../contexts/AppContext';
+import { useSearch } from '../../hooks/useSearch';
 import { useContentAnalysis } from '../../hooks/useContentAnalysis';
 import { TextContextMenu } from '../ui/TextContextMenu';
 
@@ -30,7 +31,8 @@ export const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
   isTextAtPosition,
   getTextAtPosition
 }) => {
-  const { state } = useAppContext();
+  const { state, dispatch } = useAppContext();
+  const search = useSearch();
   const overlayRef = useRef<HTMLDivElement>(null);
   
   // Debug: Log when overlay mounts/unmounts
@@ -283,10 +285,17 @@ export const TextSelectionOverlay: React.FC<TextSelectionOverlayProps> = ({
 
   const handleSearch = useCallback(() => {
     if (selectedText) {
-      // TODO: Trigger search with selected text
-      console.log('Search for:', selectedText);
+      // Run a document search immediately
+      search.searchInDocument(selectedText);
+      // Focus and populate search input for visibility
+      dispatch({ type: 'SET_SEARCH_QUERY', payload: selectedText });
+      const searchInput = document.querySelector('input[placeholder*="Search"]') as HTMLInputElement | null;
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.select();
+      }
     }
-  }, [selectedText]);
+  }, [selectedText, search, dispatch]);
 
   // Handle global mouse up (for when mouse leaves the overlay)
   useEffect(() => {

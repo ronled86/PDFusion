@@ -1,3 +1,11 @@
+.search-hit-highlight {
+  outline: 2px solid #d97706; /* amber-600 */
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.5);
+}
+
+.pdf-native-selection {
+  background-color: rgba(250, 204, 21, 0.6); /* amber-400/60 */
+}
 /* Import custom animations */
 @import './styles/animations.css';
 

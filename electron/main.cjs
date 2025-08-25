@@ -141,7 +141,6 @@ var createWindow = function () { return __awaiter(void 0, void 0, void 0, functi
                 }).catch(function (err) {
                     logToFile("\u274C Failed to execute debug script: ".concat(err.message));
                 });
-                win.webContents.openDevTools({ mode: "detach" });
                 return [3 /*break*/, 5];
             case 3:
                 logToFile("Loading production index.html");
@@ -377,7 +376,8 @@ electron_1.ipcMain.handle("print:pdf", function (_evt, data, filename) { return 
                     webPreferences: {
                         nodeIntegration: false,
                         contextIsolation: true,
-                        webSecurity: false // Allow file:// URLs for printing
+                        webSecurity: true, // Keep security enabled
+                        allowRunningInsecureContent: false
                     },
                     show: false
                 });

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { PDFDocumentProxy } from 'pdfjs-dist';
 import { useAppContext } from '../../contexts/AppContext';
+import { SearchHighlightOverlay } from './SearchHighlightOverlay';
 
 interface ContinuousPDFViewerProps {
   pdf: PDFDocumentProxy | null;
@@ -306,6 +307,17 @@ export const ContinuousPDFViewer: React.FC<ContinuousPDFViewerProps> = ({
     }
   }, [pageIndex, pageDimensions]);
 
+  // When current search hit changes, ensure its page is in view
+  useEffect(() => {
+    if (!containerRef.current) return;
+    if (state.currentSearchHitGlobalIndex < 0 || state.currentSearchHitGlobalIndex >= state.flattenedSearchHits.length) return;
+    const hit = state.flattenedSearchHits[state.currentSearchHitGlobalIndex];
+    const targetPageNum = hit.pageIndex + 1;
+    const dims = pageDimensions.get(targetPageNum);
+    if (!dims) return;
+    containerRef.current.scrollTo({ top: dims.top, behavior: 'smooth' });
+  }, [state.currentSearchHitGlobalIndex, state.flattenedSearchHits, pageDimensions]);
+
   // Use Intersection Observer for better performance
   useEffect(() => {
     if (!containerRef.current || pageDimensions.size === 0) return;
@@ -453,6 +465,37 @@ export const ContinuousPDFViewer: React.FC<ContinuousPDFViewerProps> = ({
                 }}
                 className="w-full h-full rounded-lg border border-gray-200"
               />
+
+              {/* Search Highlight Overlay */}
+              {state.searchResults.length > 0 && dims && (
+                <div className="absolute top-0 left-0 w-full h-full pointer-events-none">
+                  <SearchHighlightOverlay
+                    highlights={
+                      state.searchResults
+                        .filter(result => result.pageIndex === pageNum - 1) // pageNum is 1-based
+                        .flatMap(result => result.highlights)
+                    }
+                    pageScale={zoom}
+                    pageWidth={dims.width / zoom}
+                    pageHeight={dims.height / zoom}
+                    isCurrentPage={
+                      state.searchResults.length > 0 && 
+                      state.currentSearchResultIndex >= 0 &&
+                      state.searchResults[state.currentSearchResultIndex]?.pageIndex === pageNum - 1
+                    }
+                    currentHitIndexOnThisPage={(() => {
+                      const hits = state.flattenedSearchHits;
+                      const current = state.currentSearchHitGlobalIndex;
+                      if (current < 0 || current >= hits.length) return undefined;
+                      const currentHit = hits[current];
+                      if (!currentHit || currentHit.pageIndex !== (pageNum - 1)) return undefined;
+                      const pageResult = state.searchResults.find(r => r.pageIndex === (pageNum - 1));
+                      if (!pageResult) return undefined;
+                      return currentHit.rectIndex;
+                    })()}
+                  />
+                </div>
+              )}
             </div>
           );
         })}

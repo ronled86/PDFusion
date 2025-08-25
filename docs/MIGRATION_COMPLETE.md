@@ -63,6 +63,7 @@
 #### ✅ **Working Features**
 - File operations (Open, Save, Save As)
 - Basic PDF viewing structure
+- **PDF text search with highlighting** ⭐ NEW
 - State management system
 - Modular toolbar system
 - Error handling and notifications
